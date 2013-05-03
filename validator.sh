@@ -10,7 +10,7 @@ SBINARYDIR="$BASEDIR/sbinary/"
 REFACDIR="$BASEDIR/scala-refactoring/"
 IDEDIR="$BASEDIR/scala-ide/"
 
-LOCAL_REPO="$HOME/.m2/repository"
+LOCAL_M2_REPO="$HOME/.m2/repository"
 
 # Set the hash
 function set_versions(){
@@ -29,12 +29,20 @@ function set_versions(){
     ^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[M-R][0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
 }
 
-GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_REPO}"
+GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_M2_REPO}"
 #REFACTOPS="-Dmaven.test.skip=true"
  REFACOPTS=""
 # IDEOPTS="-Drepo.typesafe=http://repo.typesafe.com/typesafe/ide-$SCALASHORT"
 IDEOPTS=""
 
+function get_scala(){
+    mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
+    -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
+    -Dartifact=org.scala-lang:scala-compiler:$SCALAVERSION-$SCALAHASH-SNAPSHOT \
+    && mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
+    -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
+    -Dartifact=org.scala-lang:scala-library:$SCALAVERSION-$SCALAHASH-SNAPSHOT
+}
 
 function ant-full-scala(){
     ant distpack -Dmaven.version.suffix="-`git rev-parse HEAD|cut -c 1-7`-SNAPSHOT"
@@ -78,7 +86,7 @@ function preparesbt(){
     echo '  local' >> $HOME/.sbt/repositories
     echo '  maven-central' >> $HOME/.sbt/repositories
     echo '  typesafe-ivy-releases: http://repo.typesafe.com/typesafe/ivy-releases/, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]' >> $HOME/.sbt/repositories
-    echo "  mavenLocal: file://$LOCAL_REPO" >> $HOME/.sbt/repositories
+    echo "  mavenLocal: file://$LOCAL_M2_REPO" >> $HOME/.sbt/repositories
 }
 
 function cleanupsbt(){
@@ -97,11 +105,11 @@ sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVers
      'set every scalaBinaryVersion <<= scalaVersion.identity' \
      'set (libraryDependencies in compilePersistSub) ~= { ld => ld map { case dep if (dep.organization == "org.scala-tools.sbinary") && (dep.name == "sbinary") => dep.copy(revision = (dep.revision + "-pretending-SNAPSHOT")) ; case dep => dep } }' \
      'set every publishMavenStyle := true' \
-      "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_REPO\")" \
+      "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
      'set artifact in (compileInterfaceSub, packageBin) := Artifact("compiler-interface")' \
      'set publishArtifact in (compileInterfaceSub, packageSrc) := false' \
      'set every credentials := Seq(Credentials(Path.userHome / ".credentials"))' \
-     'set every publishTo := Some(Resolver.file("file",  new File("$LOCAL_REPO")))' \
+     'set every publishTo := Some(Resolver.file("file",  new File("$LOCAL_M2_REPO")))' \
      'set every crossPaths := true' \
    +classpath/publish +logging/publish +io/publish +control/publish +classfile/publish +process/publish +relation/publish +interface/publish +persist/publish +api/publish +compiler-integration/publish +incremental-compiler/publish +compile/publish +compiler-interface/publish
 }
@@ -114,9 +122,9 @@ function sbinarybuild(){
   'set every scalaBinaryVersion <<= scalaVersion.identity' \
   'set (libraryDependencies in core) ~= { ld => ld flatMap { case dep if (dep.configurations.map(_ contains "test") getOrElse false)  => None; case dep => Some(dep) } }' \
   'set every publishMavenStyle := true' \
-  "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_REPO\")" \
+  "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
   'set every credentials := Seq(Credentials(Path.userHome / ".credentials"))' \
-  'set every publishTo := Some(Resolver.file("file",  new File("$LOCAL_REPO")))' \
+  'set every publishTo := Some(Resolver.file("file",  new File("$LOCAL_M2_REPO")))' \
   'set every crossPaths := true' \
   +core/publish +core/publish-local
 }
@@ -131,7 +139,8 @@ test mvn -version | tee ~/compilation-$SCALADATE-$SCALAHASH.log || exit 125
 cd $SCALADIR
 test ant-clean || exit 125
 test git clean -fxd || exit 125
-already_built=$(find $LOCAL_REPO -type f -iname "scala-compiler-$SCALAVERSION-$SCALAHASH-SNAPSHOT.jar")
+test get_full_scala
+already_built=$(find $LOCAL_M2_REPO -type f -iname "scala-compiler-$SCALAVERSION-$SCALAHASH-SNAPSHOT.jar")
 if [ -z $already_built ]; then
     test ant-full-scala | tee -a ~/compilation-$SCALADATE-$SCALAHASH.log
 else
