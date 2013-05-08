@@ -11,6 +11,7 @@ REFACDIR="$BASEDIR/scala-refactoring/"
 IDEDIR="$BASEDIR/scala-ide/"
 
 LOCAL_M2_REPO="$HOME/.m2/repository"
+LOGGINGDIR="$HOME"
 
 # Set the hash
 function set_versions(){
@@ -74,7 +75,7 @@ function test() {
 }
 
 function say(){
-    echo "$@" | tee -a ~/compilation-$SCALADATE-$SCALAHASH.log
+    echo "$@" | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 }
 
 function preparesbt(){
@@ -131,9 +132,9 @@ function sbinarybuild(){
 
 
 test set_versions || exit 125
-echo "### ~/compilation-$SCALADATE-$SCALAHASH.log"
+echo "### $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
 # version logging
-test mvn -version | tee ~/compilation-$SCALADATE-$SCALAHASH.log || exit 125
+test mvn -version | tee $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
 
 # building Scala
 cd $SCALADIR
@@ -142,7 +143,7 @@ test git clean -fxd || exit 125
 test get_full_scala
 already_built=$(find $LOCAL_M2_REPO -type f -iname "scala-compiler-$SCALAVERSION-$SCALAHASH-SNAPSHOT.jar")
 if [ -z $already_built ]; then
-    test ant-full-scala | tee -a ~/compilation-$SCALADATE-$SCALAHASH.log
+    test ant-full-scala | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 else
     say "### the Scala compiler has been built for $SCALAHASH"
 fi
@@ -153,7 +154,7 @@ test preparesbt || exit 125
 # building Sbinary to a local maven repo
 cd $SBINARYDIR
 test git clean -fxd || exit 125
-test sbinarybuild | tee -a ~/compilation-$SCALADATE-$SCALAHASH.log
+test sbinarybuild | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 sbinary_return=$?
 if [ $sbinary_return -ne 0 ]; then
     cd $ORIGPWD
@@ -167,7 +168,7 @@ fi
 # #building SBT
 cd $SBTDIR
 test git clean -fxd || exit 125
-test sbtbuild | tee -a ~/compilation-$SCALADATE-$SCALAHASH.log
+test sbtbuild | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 sbt_return=$?
 if [ $sbt_return -ne 0 ]; then
     cd $ORIGPWD
@@ -184,7 +185,7 @@ test cleanupsbt || exit 125
 cd $REFACDIR
 # test mvn $GENMVNOPTS clean || exit 125
 test git clean -fxd || exit 125
-test mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install | tee -a ~/compilation-$SCALADATE-$SCALAHASH.log
+test mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 refac_return=$?
 if [ $refac_return -ne 0 ]; then
     cd $ORIGPWD
@@ -198,8 +199,8 @@ fi
 cd $IDEDIR
 # test mvn $GENMVNOPTS clean || exit 125
 test git clean -fxd || exit 125
- test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install | tee -a ~/compilation-$SCALADATE-$SCALAHASH.log
-# test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dsbt.compiled.version=$SCALAVERSION-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install | tee -a ~/compilation-$SCALADATE-$SCALAHASH.log
+ test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+# test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dsbt.compiled.version=$SCALAVERSION-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 ide_return=$?
 if [ $ide_return -ne 0 ]; then
     cd $ORIGPWD
@@ -207,13 +208,13 @@ if [ $ide_return -ne 0 ]; then
 else
     say "### SCALA-IDE SUCCESS !"
 fi
-grep -qe "BUILD\ FAILURE" ~/compilation-$SCALADATE-$SCALAHASH.log
+grep -qe "BUILD\ FAILURE" $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 if [ $? -ne 0 ]; then
     say "Failure not detected in log, exiting with 0"
-    echo "log in ~/compilation-$SCALADATE-$SCALAHASH.log"
+    echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
     exit 0
 else
     say "Failure  detected in log, exiting with 1"
-    echo "log in ~/compilation-$SCALADATE-$SCALAHASH.log"
+    echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
     exit 1
 fi
