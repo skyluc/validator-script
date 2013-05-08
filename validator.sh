@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash
 trap "exit 1" TERM
 export TOP_PID=$$
 
@@ -36,13 +36,13 @@ GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_M2_REPO}"
 # IDEOPTS="-Drepo.typesafe=http://repo.typesafe.com/typesafe/ide-$SCALASHORT"
 IDEOPTS=""
 
-function get_scala(){
-    mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
+function get_full_scala(){
+    (mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
     -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
     -Dartifact=org.scala-lang:scala-compiler:$SCALAVERSION-$SCALAHASH-SNAPSHOT \
     && mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
     -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
-    -Dartifact=org.scala-lang:scala-library:$SCALAVERSION-$SCALAHASH-SNAPSHOT
+    -Dartifact=org.scala-lang:scala-library:$SCALAVERSION-$SCALAHASH-SNAPSHOT) || return 1
 }
 
 function ant-full-scala(){
@@ -130,32 +130,50 @@ function sbinarybuild(){
   +core/publish +core/publish-local
 }
 
+function maven_fail_detect() {
+    # failure detection
+    grep -qe "BUILD\ FAILURE" $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+    if [ $? -ne 0 ]; then
+        say "Failure not detected in log, exiting with 0"
+        echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
+        exit 0
+    else
+        say "Failure  detected in log, exiting with 1"
+        echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
+        exit 1
+    fi
+}
 
 test set_versions || exit 125
 echo "### $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
 # version logging
-test mvn -version | tee $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
+(test mvn -version) | tee $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
 
 # building Scala
 cd $SCALADIR
-test ant-clean || exit 125
-test git clean -fxd || exit 125
-test get_full_scala
+(test ant-clean) || exit 125
+(test git clean -fxd) || exit 125
+# Try artifactory
+(get_full_scala)
+if [ $? -ne 0 ]; then
+    say "### fetching Scala $SCALAVERSION-$SCALAHASH-SNAPSHOT from artifactory failed !"
+fi
 already_built=$(find $LOCAL_M2_REPO -type f -iname "scala-compiler-$SCALAVERSION-$SCALAHASH-SNAPSHOT.jar")
 if [ -z $already_built ]; then
-    test ant-full-scala | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+    say "### the Scala compiler was not in local maven, building"
+    (test ant-full-scala) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 else
-    say "### the Scala compiler has been built for $SCALAHASH"
+    say "### the Scala compiler was found in local maven for $SCALAHASH"
 fi
 
 # prepare .sbt/repositories
-test preparesbt || exit 125
+(test preparesbt) || exit 125
 
 # building Sbinary to a local maven repo
 cd $SBINARYDIR
-test git clean -fxd || exit 125
-test sbinarybuild | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-sbinary_return=$?
+(test git clean -fxd) || exit 125
+(test sbinarybuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+sbinary_return=${PIPESTATUS[0]}
 if [ $sbinary_return -ne 0 ]; then
     cd $ORIGPWD
     say "### SCALA-SBINARY FAILED !"
@@ -167,9 +185,9 @@ fi
 
 # #building SBT
 cd $SBTDIR
-test git clean -fxd || exit 125
-test sbtbuild | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-sbt_return=$?
+(test git clean -fxd) || exit 125
+(test sbtbuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+sbt_return=${PIPESTATUS[0]}
 if [ $sbt_return -ne 0 ]; then
     cd $ORIGPWD
     say "### SCALA-SBT FAILED !"
@@ -179,14 +197,14 @@ else
 fi
 
 # remove .sbt/repositories scaffolding
-test cleanupsbt || exit 125
+(test cleanupsbt) || exit 125
 
 # building scala-refactoring
 cd $REFACDIR
-# test mvn $GENMVNOPTS clean || exit 125
-test git clean -fxd || exit 125
-test mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-refac_return=$?
+# (test mvn $GENMVNOPTS clean) || exit 125
+(test git clean -fxd) || exit 125
+(test mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+refac_return=${PIPESTATUS[0]}
 if [ $refac_return -ne 0 ]; then
     cd $ORIGPWD
     say "### SCALA-REFACTORING FAILED !"
@@ -194,27 +212,19 @@ if [ $refac_return -ne 0 ]; then
 else
     say "### SCALA-REFACTORING SUCCESS !"
 fi
+maven_fail_detect
 
 # building scala-ide
 cd $IDEDIR
-# test mvn $GENMVNOPTS clean || exit 125
-test git clean -fxd || exit 125
- test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-# test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dsbt.compiled.version=$SCALAVERSION-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-ide_return=$?
+# (test mvn $GENMVNOPTS clean) || exit 125
+(test git clean -fxd) || exit 125
+(test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+# (test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dsbt.compiled.version=$SCALAVERSION-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+ide_return=${PIPESTATUS[0]}
 if [ $ide_return -ne 0 ]; then
     cd $ORIGPWD
     say "### SCALA-IDE FAILED !"
 else
     say "### SCALA-IDE SUCCESS !"
 fi
-grep -qe "BUILD\ FAILURE" $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-if [ $? -ne 0 ]; then
-    say "Failure not detected in log, exiting with 0"
-    echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
-    exit 0
-else
-    say "Failure  detected in log, exiting with 1"
-    echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
-    exit 1
-fi
+maven_fail_detect
