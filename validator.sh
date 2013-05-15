@@ -26,8 +26,8 @@ function set_versions(){
     SCALAVERSION="$SCALAMAJOR.$SCALAMINOR.$SCALAPATCH"
     SCALASHORT="$SCALAMAJOR.$SCALAMINOR"
 
-    SBTVERSION=$(sed -rn 's/[
-    ^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[M-R][0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
+    SBTVERSION=$(sed -rn 's/[^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[M-R][0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
+    if [ -z $SBTVERSION ]; then exit 1; fi
 }
 
 GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_M2_REPO}"
