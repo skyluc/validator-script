@@ -110,7 +110,7 @@ sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVers
      'set artifact in (compileInterfaceSub, packageBin) := Artifact("compiler-interface")' \
      'set publishArtifact in (compileInterfaceSub, packageSrc) := false' \
      'set every credentials := Seq(Credentials(Path.userHome / ".credentials"))' \
-     'set every publishTo := Some(Resolver.file("file",  new File("$LOCAL_M2_REPO")))' \
+     "set every publishTo := Some(Resolver.file(\"file\",  new File(\"$LOCAL_M2_REPO\")))" \
      'set every crossPaths := true' \
    +classpath/publish +logging/publish +io/publish +control/publish +classfile/publish +process/publish +relation/publish +interface/publish +persist/publish +api/publish +compiler-integration/publish +incremental-compiler/publish +compile/publish +compiler-interface/publish
 }
@@ -125,7 +125,7 @@ function sbinarybuild(){
   'set every publishMavenStyle := true' \
   "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
   'set every credentials := Seq(Credentials(Path.userHome / ".credentials"))' \
-  'set every publishTo := Some(Resolver.file("file",  new File("$LOCAL_M2_REPO")))' \
+  "set every publishTo := Some(Resolver.file(\"file\",  new File(\"$LOCAL_M2_REPO\")))" \
   'set every crossPaths := true' \
   +core/publish +core/publish-local
 }
@@ -134,9 +134,13 @@ function maven_fail_detect() {
     # failure detection
     grep -qe "BUILD\ FAILURE" $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
     if [ $? -ne 0 ]; then
-        say "Failure not detected in log, exiting with 0"
-        echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
-        exit 0
+        if [ -z $1 ]; then
+            say "Failure not detected in log, exiting with 0"
+            echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
+            exit 0
+        else
+            say "Failure not detected in log, continuing"
+        fi
     else
         say "Failure  detected in log, exiting with 1"
         echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
@@ -212,7 +216,7 @@ if [ $refac_return -ne 0 ]; then
 else
     say "### SCALA-REFACTORING SUCCESS !"
 fi
-maven_fail_detect
+maven_fail_detect "dontstop"
 
 # building scala-ide
 cd $IDEDIR
