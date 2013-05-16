@@ -27,7 +27,8 @@ function set_versions(){
     SCALASHORT="$SCALAMAJOR.$SCALAMINOR"
 
     SBTVERSION=$(sed -rn 's/[^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[M-R][0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
-    if [ -z $SBTVERSION ]; then exit 1; fi
+    if [ -z $SBTVERSION ]; then exit 125; fi
+    say "### SBT version detected: \"$SBTVERSION\""
 }
 
 GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_M2_REPO}"
@@ -47,8 +48,7 @@ function get_full_scala(){
 
 function ant-full-scala(){
     ant distpack -Dmaven.version.suffix="-`git rev-parse HEAD|cut -c 1-7`-SNAPSHOT"
-    ant_return=$?
-    if [ $ant_return -ne 0 ]; then
+    if [ $? -ne 0 ]; then
         echo "### SCALA FAILED"
         kill -s TERM $TOP_PID
     else
@@ -68,7 +68,7 @@ function test() {
     "$@"
     status=$?
     if [ $status -ne 0 ]; then
-        echo "### ERROR with $1"
+        say "### ERROR with $1"
         cd $ORIGPWD
         kill -s TERM $TOP_PID
     fi
@@ -100,7 +100,7 @@ function cleanupsbt(){
 
 function sbtbuild(){
 sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
-     "set every version := \"$SBTVERSION \""\
+     "set every version := \"$SBTVERSION\""\
      "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
      'set every Util.includeTestDependencies := false' \
      'set every scalaBinaryVersion <<= scalaVersion.identity' \
@@ -135,21 +135,21 @@ function maven_fail_detect() {
     grep -qe "BUILD\ FAILURE" $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
     if [ $? -ne 0 ]; then
         if [ -z $1 ]; then
-            say "Failure not detected in log, exiting with 0"
+            say "### Failure not detected in log, exiting with 0"
             echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
             exit 0
         else
-            say "Failure not detected in log, continuing"
+            say "### Failure not detected in log, continuing"
         fi
     else
-        say "Failure  detected in log, exiting with 1"
+        say "### Failure  detected in log, exiting with 1"
         echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
         exit 1
     fi
 }
 
 test set_versions || exit 125
-echo "### $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
+say "### logfile $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
 # version logging
 (test mvn -version) | tee $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
 
