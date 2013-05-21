@@ -13,7 +13,11 @@ IDEDIR="$BASEDIR/scala-ide/"
 LOCAL_M2_REPO="$HOME/.m2/repository"
 LOGGINGDIR="$HOME"
 
-# Set the hash
+# :docstring set_versions:
+# Usage: set_versions
+# Computes the hashes governing the version mangling of Scala/sbt/sbinary
+# :end docstring:
+
 function set_versions(){
     pushd $SCALADIR
     SCALAHASH=$(git rev-parse HEAD | cut -c 1-7)
@@ -39,20 +43,34 @@ function set_versions(){
     say "### SBT version detected: \"$SBTVERSION\""
 }
 
+# This is here because it requires set_versions
 GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_M2_REPO}"
 #REFACTOPS="-Dmaven.test.skip=true"
  REFACOPTS=""
 # IDEOPTS="-Drepo.typesafe=http://repo.typesafe.com/typesafe/ide-$SCALASHORT"
 IDEOPTS=""
 
+# :docstring get_full_scala:
+# Usage: get_full_scala
+# This attempts to download Scala from Artifactory's
+# typesafe/scala-pr-validation-snapshot, and copies it to the
+# local maven repo
+# :end docstring:
+
 function get_full_scala(){
-    (mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
+    (mvn $GENMVNOPTS org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
     -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
     -Dartifact=org.scala-lang:scala-compiler:$SCALAVERSION-$SCALAHASH-SNAPSHOT \
-    && mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
+    && mvn $GENMVNOPTS org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
     -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
     -Dartifact=org.scala-lang:scala-library:$SCALAVERSION-$SCALAHASH-SNAPSHOT) || return 1
 }
+
+# :docstring ant-full-scala:
+# Usage: ant-full-scala
+# This builds Scala from source and publishes the resulting fact
+# in the local maven repo. It does not run the test suite.
+# :end docstring:
 
 function ant-full-scala(){
     ant distpack -Dmaven.version.suffix="-`git rev-parse HEAD|cut -c 1-7`-SNAPSHOT"
@@ -67,12 +85,21 @@ function ant-full-scala(){
     fi
 }
 
+# :docstring ant-clean:
+# Usage: ant-clean
+# This cleans a build repo in $SCALADIR, ignoring the mandatory
+# dependency cache update check.
+# :end docstring:
+
 function ant-clean(){
     ant -Divy.cache.ttl.default=eternal all.clean
 }
 
-# do_i_have $groupId $artifactId $version tests if
-# $groupId:$artifactId:jar:$version is in the local maven repo
+# :docstring do_i_have:
+# Usage: do_i_have <groupId> <artifactId> <version>
+# Tests if <groupId>:<artifactId>:jar:<version> is in the local maven repo.
+# :end docstring:
+
 function do_i_have(){
     say "### local repo test: trying to find $1:$2:jar:$3"
     MVN_TEST_DIR=$(mktemp -d -t $1XXX)
@@ -108,6 +135,13 @@ EOF
     return $det
 }
 
+# :docstring test:
+# Usage: test <argument ..>
+# Executes <argument ..>, logging the launch of the command to the
+# main log file, and kills global script execution with the TERM
+# signal if the commands ends up failing.
+# :end docstring:
+
 function test() {
     echo "### $@"
     "$@"
@@ -119,9 +153,19 @@ function test() {
     fi
 }
 
+# :docstring say:
+# Usage: say <argument ..>
+# Prints <argument ..> to both console and the main log file.
+# :end docstring:
+
 function say(){
     echo "$@" | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 }
+
+# :docstring preparesbt:
+# Usage: preparesbt
+# This lets sbt know to look for the local maven repository.
+# :end docstring:
 
 function preparesbt(){
     if [ -f $HOME/.sbt/repositories ]; then
@@ -137,6 +181,11 @@ function preparesbt(){
 EOF
 }
 
+# :docstring cleanupsbt:
+# Usage: cleanupsbt
+# This reestablishes the previous .sbt/repositories.
+# :end docstring:
+
 function cleanupsbt(){
     if [[ ! -z $OLD_SBT_REPO_FILE ]]; then
         mv $OLD_SBT_REPO_FILE $HOME/.sbt/repositories
@@ -144,6 +193,17 @@ function cleanupsbt(){
         rm $HOME/.sbt/repositories
     fi
 }
+
+# :docstring sbtbuild:
+# Usage: sbtbuild
+#
+# To be launched from $SBTDIR. It needs .sbt/repositories to
+# understand where to fetch Scala. Builds sbt and publishes
+# it to the local maven repo. This depends on a '-pretending'-ised
+# version of whatever sbinary version is in sbt's default
+# config. If this '-pretending' is ever removed from Scala-IDE's main
+# pom, it will need to be removed down here as well.
+# :end docstring:
 
 function sbtbuild(){
 sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
@@ -162,6 +222,17 @@ sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVers
    +classpath/publish +logging/publish +io/publish +control/publish +classfile/publish +process/publish +relation/publish +interface/publish +persist/publish +api/publish +compiler-integration/publish +incremental-compiler/publish +compile/publish +compiler-interface/publish
 }
 
+# :docstring sbinarybuild:
+# Usage: sbinarybuild
+#
+# To be launched from $SBINARYDIR. It needs .sbt/repositories to
+# understand where to fetch Scala. Builds sbinary and publishes
+# it to the local maven repo. This creates a '-pretending'-ised
+# version of whatever sbinary version is in the repo's default
+# config. If this '-pretending' is ever removed from Scala-IDE's main
+# pom, it will need to be removed down here as well.
+# :end docstring:
+
 function sbinarybuild(){
   sbt "reboot full" clean "show scala-instance" \
   "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
@@ -176,6 +247,15 @@ function sbinarybuild(){
   'set every crossPaths := true' \
   +core/publish +core/publish-local
 }
+
+# :docstring maven_fail_detect:
+# Usage : maven_fail_detect [<myString>]
+# This tests if a maven failure ("BUILD FAILURE") was encountered
+# in the main log file. If so, it exit with error code 1. If not,
+# it exits with 0 or continues, depending if (resp.) <myString> is
+# empty or not.
+# This is mostly used as a sanity-check for failure
+# :end docstring:
 
 function maven_fail_detect() {
     # failure detection
@@ -201,7 +281,7 @@ say "### logfile $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
 # version logging
 (test mvn -version) | tee $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
 
-# building Scala
+# Building Scala, and publishing to local maven repo
 cd $SCALADIR
 (test ant-clean) || exit 125
 (test git clean -fxd) || exit 125
@@ -210,18 +290,25 @@ cd $SCALADIR
 if [ $? -ne 0 ]; then
     say "### fetching Scala $SCALAVERSION-$SCALAHASH-SNAPSHOT from artifactory failed !"
 fi
-already_built=$(find $LOCAL_M2_REPO -type f -iname "scala-compiler-$SCALAVERSION-$SCALAHASH-SNAPSHOT.jar")
-if [ -z $already_built ]; then
+
+# Check if the compiler isnt' already in the local maven
+# Note : this assumes if scala-compiler is there, so is scala-library
+do_i_have "org.scala-lang" "scala-compiler" "$SCALAVERSION-$SCALAHASH-SNAPSHOT"
+already_built=$?
+if [ $already_built -ne 0 ]; then
     say "### the Scala compiler was not in local maven, building"
     (test ant-full-scala) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 else
     say "### the Scala compiler was found in local maven for $SCALAHASH"
 fi
 
-# prepare .sbt/repositories
+# Prepare .sbt/repositories resolution
+# To do the minimal amount of change, this should properly be
+# executed if (! do_i_have [sbinary_args] || ! do_i_have
+# [sbt_args]) but it's too little gain to test for
 (test preparesbt) || exit 125
 
-# building Sbinary to a local maven repo
+# Building Sbinary to a local maven repo, if needed
 do_i_have "org.scala-tools.sbinary" "sbinary_$SCALAVERSION-$SCALAHASH-SNAPSHOT" "$SBINARYVERSION"
 sbinaryres=$?
 if [ $sbinaryres -ne 0 ]; then
@@ -239,8 +326,12 @@ if [ $sbinaryres -ne 0 ]; then
     fi
 fi
 
-# building SBT
-# TODO : this is brittle if the module dependencies for SBT change
+# Building SBT to a local maven repo, if needed
+
+# TODO : This assumes if we have one of the projects in
+# sbtbuild() above, we have them all. This is brittle if the sbt
+# subproject dependency we test for (here, classpath) changes.
+
 do_i_have "org.scala-sbt" "classpath_$SCALAVERSION-$SCALAHASH-SNAPSHOT" "$SBTVERSION"
 if [$? -ne 0 ]; then
     cd $SBTDIR
@@ -256,12 +347,11 @@ if [$? -ne 0 ]; then
     fi
 fi
 
-# remove .sbt/repositories scaffolding
+# Remove .sbt/repositories scaffolding
 (test cleanupsbt) || exit 125
 
-# building scala-refactoring
+# Building scala-refactoring
 cd $REFACDIR
-# (test mvn $GENMVNOPTS clean) || exit 125
 (test git clean -fxd) || exit 125
 (test mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 refac_return=${PIPESTATUS[0]}
@@ -272,11 +362,10 @@ if [ $refac_return -ne 0 ]; then
 else
     say "### SCALA-REFACTORING SUCCESS !"
 fi
-maven_fail_detect "dontstop"
+maven_fail_detect "DontStopOnSuccess"
 
-# building scala-ide
+# Building scala-ide
 cd $IDEDIR
-# (test mvn $GENMVNOPTS clean) || exit 125
 (test git clean -fxd) || exit 125
 (test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 # (test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dsbt.compiled.version=$SCALAVERSION-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
