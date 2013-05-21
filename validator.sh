@@ -3,6 +3,7 @@
 # below).
 trap "exit 1" TERM
 export TOP_PID=$$
+set -e
 
 # Known problems : does not fare well with interrupted, partial
 # compilations. We should perhaps have a multi-dependency version
@@ -21,6 +22,45 @@ fi
 
 LOCAL_M2_REPO="$HOME/.m2/repository"
 LOGGINGDIR="$HOME"
+
+# :docstring with_backoff:
+# Usage: with_backoff <argument ...>
+# Executes <argument ...> with exponential backoff in case of
+# failure
+# :end docstring:
+
+function with_backoff(){
+  local max_time=360
+  local timeout=5
+  local elapsed=0
+  local attempt=0
+  local exitCode=1
+
+  while [[ $elapsed < $max_time ]]
+  do
+    set +e
+    "$@"
+    exitCode=$?
+    set -e
+
+    if [[ $exitCode == 0 ]]
+    then
+      break
+    fi
+
+    echo "Failure! Retrying in $timeout.." 1>&2
+    sleep $timeout
+    elapsed=$(( elasped + timeout ))
+    timeout=$(( timeout * 2 ))
+  done
+
+  if [[ $exitCode != 0 ]]
+  then
+    echo "Abandoning! ($@)" 1>&2
+  fi
+
+  return $exitCode
+}
 
 # :docstring set_versions:
 # Usage: set_versions
@@ -79,12 +119,17 @@ IDEOPTS=""
 # :end docstring:
 
 function get_full_scala(){
-    (mvn $GENMVNOPTS org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
+    mvn $GENMVNOPTS org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
     -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
     -Dartifact=org.scala-lang:scala-compiler:$SCALAVERSION-$SCALAHASH-SNAPSHOT \
     && mvn $GENMVNOPTS org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
     -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
-    -Dartifact=org.scala-lang:scala-library:$SCALAVERSION-$SCALAHASH-SNAPSHOT) || return 1
+    -Dartifact=org.scala-lang:scala-library:$SCALAVERSION-$SCALAHASH-SNAPSHOT
+    if [[ ${PIPESTATUS[0]} -eq 0 && ${PIPESTATUS[1]} -eq 0 ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 # :docstring ant-full-scala:
@@ -181,7 +226,7 @@ function test() {
 # :end docstring:
 
 function say(){
-    echo "$@" | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+    (echo "$@") | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 }
 
 # :docstring preparesbt:
@@ -314,15 +359,20 @@ cd $SCALADIR
 (test ant-clean) || exit 125
 (test git clean -fxd) || exit 125
 # Try artifactory
-(get_full_scala)
-if [ $? -ne 0 ]; then
-    say "### fetching Scala $SCALAVERSION-$SCALAHASH-SNAPSHOT from artifactory failed !"
+set +e
+get_full_scala
+getRetCode=$?
+set -e
+if [ $getRetCode -ne 0 ]; then
+    say "### Fetching Scala $SCALAVERSION-$SCALAHASH-SNAPSHOT from artifactory failed ! (code $getRetCode)"
 fi
 
 # Check if the compiler isnt' already in the local maven
 # Note : this assumes if scala-compiler is there, so is scala-library
+set +e
 do_i_have "org.scala-lang" "scala-compiler" "$SCALAVERSION-$SCALAHASH-SNAPSHOT"
 already_built=$?
+set -e
 if [ $already_built -ne 0 ]; then
     say "### the Scala compiler was not in local maven, building"
     (test ant-full-scala) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
@@ -340,8 +390,10 @@ fi
 # Building Sbinary to a local maven repo, if needed #
 #####################################################
 
+set +e
 do_i_have "org.scala-tools.sbinary" "sbinary_$SCALAVERSION-$SCALAHASH-SNAPSHOT" "$SBINARYVERSION"
 sbinaryres=$?
+set -e
 if [ $sbinaryres -ne 0 ]; then
     say "### SBinary result $sbinaryres"
     cd $SBINARYDIR
@@ -365,8 +417,10 @@ fi
 # sbtbuild() above, we have them all. This is brittle if the sbt
 # subproject dependency we test for (here, classpath) changes.
 
+set +e
 do_i_have "org.scala-sbt" "classpath_$SCALAVERSION-$SCALAHASH-SNAPSHOT" "$SBTVERSION"
 sbtres=$?
+set -e
 if [ $sbtres -ne 0 ]; then
     cd $SBTDIR
     (test git clean -fxd) || exit 125
