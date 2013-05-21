@@ -123,6 +123,7 @@ function ant-clean(){
 
 function do_i_have(){
     say "### local repo test: trying to find $1:$2:jar:$3"
+    CALLBACK=$(pwd)
     MVN_TEST_DIR=$(mktemp -d -t $1XXX)
     cd $MVN_TEST_DIR
     cat > pom.xml <<EOF
@@ -146,6 +147,7 @@ function do_i_have(){
 EOF
     (mvn $GENMVNOPTS test)
     detmvn=${PIPESTATUS[0]}
+    cd $CALLBACK
     rm -rf $MVN_TEST_DIR
     if [[ $detmvn -eq 0 ]]; then
         say "### $1:$2:jar:$3 found !"
