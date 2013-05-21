@@ -298,12 +298,18 @@ function maven_fail_detect() {
     fi
 }
 
+#####################
+# BEGIN MAIN SCRIPT #
+#####################
+
 set_versions
 say "### logfile $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
 # version logging
 (test mvn -version) | tee $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
 
-# Building Scala, and publishing to local maven repo
+######################################################
+# Building Scala, and publishing to local maven repo #
+######################################################
 cd $SCALADIR
 (test ant-clean) || exit 125
 (test git clean -fxd) || exit 125
@@ -330,7 +336,10 @@ fi
 # [sbt_args]) but it's too little gain to test for
 (test preparesbt) || exit 125
 
-# Building Sbinary to a local maven repo, if needed
+#####################################################
+# Building Sbinary to a local maven repo, if needed #
+#####################################################
+
 do_i_have "org.scala-tools.sbinary" "sbinary_$SCALAVERSION-$SCALAHASH-SNAPSHOT" "$SBINARYVERSION"
 sbinaryres=$?
 if [ $sbinaryres -ne 0 ]; then
@@ -348,7 +357,9 @@ if [ $sbinaryres -ne 0 ]; then
     fi
 fi
 
-# Building SBT to a local maven repo, if needed
+#################################################
+# Building SBT to a local maven repo, if needed #
+#################################################
 
 # TODO : This assumes if we have one of the projects in
 # sbtbuild() above, we have them all. This is brittle if the sbt
@@ -373,7 +384,14 @@ fi
 # Remove .sbt/repositories scaffolding
 (test cleanupsbt) || exit 125
 
-# Building scala-refactoring
+################################
+# Building scala-refactoring #
+################################
+# Note : because scala-refactoring is a dependency that is linked
+# to completely dynamically (read : without version requirements)
+# from custom update sites, looking for a maven artifact in a
+# local package is fragile to the point of uselessness. Hence we
+# have to rebuild it every time.
 cd $REFACDIR
 (test git clean -fxd) || exit 125
 (test mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
@@ -387,7 +405,9 @@ else
 fi
 maven_fail_detect "DontStopOnSuccess"
 
-# Building scala-ide
+######################
+# Building scala-ide #
+######################
 cd $IDEDIR
 (test git clean -fxd) || exit 125
 (test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
@@ -400,3 +420,7 @@ else
     say "### SCALA-IDE SUCCESS !"
 fi
 maven_fail_detect
+
+###################
+# END MAIN SCRIPT #
+###################
