@@ -1,6 +1,12 @@
 #!/bin/bash
+# This is for forcibly stopping the job from a subshell (see test
+# below).
 trap "exit 1" TERM
 export TOP_PID=$$
+
+# Known problems : does not fare well with interrupted, partial
+# compilations. We should perhaps have a multi-dependency version
+# of do_i_have below
 
 ORIGPWD=`pwd`
 BASEDIR="$HOME/Scala"
@@ -9,6 +15,9 @@ SBTDIR="$BASEDIR/sbt/"
 SBINARYDIR="$BASEDIR/sbinary/"
 REFACDIR="$BASEDIR/scala-refactoring/"
 IDEDIR="$BASEDIR/scala-ide/"
+if [ -z $SBT_HOME ]; then
+    SBT_HOME=$HOME/.sbt/
+fi
 
 LOCAL_M2_REPO="$HOME/.m2/repository"
 LOGGINGDIR="$HOME"
@@ -22,6 +31,8 @@ function set_versions(){
     pushd $SCALADIR
     SCALAHASH=$(git rev-parse HEAD | cut -c 1-7)
     popd
+    # despite the name, this has nothing to do with Scala, it's a
+    # vanilla timestamp
     SCALADATE=`date +%Y-%m-%d-%H%M%S`
 
     SCALAMAJOR=$(sed -n 's/version.major=\([0-9]\)/\1/p' $SCALADIR/build.number)
@@ -30,17 +41,27 @@ function set_versions(){
     SCALAVERSION="$SCALAMAJOR.$SCALAMINOR.$SCALAPATCH"
     SCALASHORT="$SCALAMAJOR.$SCALAMINOR"
 
-    say "### SCALA version detected : $SCALAVERSION-$SCALAHASH"
+    if [[ -z $SCALAHASH || -z $SCALADATE || -z $SCALAVERSION ]]; then
+        exit 125
+    fi
+
+    echo "### SCALA version detected : $SCALAVERSION-$SCALAHASH"| tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 
     SBINARYVERSION=$(sed -rn 's/[^t]*<sbinary\.version>([0-9]+\.[0-9]+\.[0-9]+(-pretending)?(-SNAPSHOT)?)<\/sbinary\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
     if [ -z $SBINARYVERSION ]; then exit 125; fi
-    say "### SBINARY version detected: \"$SBINARYVERSION\""
+    echo "### SBINARY version detected: \"$SBINARYVERSION\"" | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 
     # TODO : much better version detection: this is sensitive to
     # the order in which the profiles are declared for sbt !
-    SBTVERSION=$(sed -rn 's/[^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[M-R][0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
+    # <--- this is super sensitive stuff ---->
+    if [[ $SCALAMINOR -gt 10 ]]; then
+        SBTVERSION=$(sed -rn 's/[^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[M-R][0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|tail -n 1)
+    else
+        SBTVERSION=$(sed -rn 's/[^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[M-R][0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
+    fi
+    # <--- this is super sensitive stuff ---->
     if [ -z $SBTVERSION ]; then exit 125; fi
-    say "### SBT version detected: \"$SBTVERSION\""
+    echo "### SBT version detected: \"$SBTVERSION\""| tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 }
 
 # This is here because it requires set_versions
@@ -123,16 +144,15 @@ function do_i_have(){
    </dependencies>
 </project>
 EOF
-    (test mvn $GENMVNOPTS test)
-    maven_fail_detect "dontstop"
-    $det=$?
+    (mvn $GENMVNOPTS test)
+    detmvn=${PIPESTATUS[0]}
     rm -rf $MVN_TEST_DIR
-    if [ $det -ne 0]; then
-        say "### $1:$2:jar:$3 not in repo !"
-    else
+    if [[ $detmvn -eq 0 ]]; then
         say "### $1:$2:jar:$3 found !"
+    else
+        say "### $1:$2:jar:$3 not in repo !"
     fi
-    return $det
+    return $detmvn
 }
 
 # :docstring test:
@@ -168,11 +188,11 @@ function say(){
 # :end docstring:
 
 function preparesbt(){
-    if [ -f $HOME/.sbt/repositories ]; then
+    if [ -f $SBT_HOME/repositories ]; then
         OLD_SBT_REPO_FILE=$(mktemp -t sbtreposXXX)
-        cat $HOME/.sbt/repositories > $OLD_SBT_REPO_FILE
+        cat $SBT_HOME/repositories > $OLD_SBT_REPO_FILE
     fi
-    cat > $HOME/.sbt/repositories <<EOF
+    cat > $SBT_HOME/repositories <<EOF
 [repositories]
   local
   maven-central
@@ -188,9 +208,9 @@ EOF
 
 function cleanupsbt(){
     if [[ ! -z $OLD_SBT_REPO_FILE ]]; then
-        mv $OLD_SBT_REPO_FILE $HOME/.sbt/repositories
+        mv $OLD_SBT_REPO_FILE $SBT_HOME/repositories
     else
-        rm $HOME/.sbt/repositories
+        rm $SBT_HOME/repositories
     fi
 }
 
@@ -262,11 +282,11 @@ function maven_fail_detect() {
     grep -qe "BUILD\ FAILURE" $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
     if [ $? -ne 0 ]; then
         if [ -z $1 ]; then
-            say "### Failure not detected in log, exiting with 0"
+            say "### No failure detected in log, exiting with 0"
             echo "log in $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
             exit 0
         else
-            say "### Failure not detected in log, continuing"
+            say "### No failure detected in log, continuing"
             return 0
         fi
     else
@@ -276,7 +296,7 @@ function maven_fail_detect() {
     fi
 }
 
-test set_versions || exit 125
+set_versions
 say "### logfile $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
 # version logging
 (test mvn -version) | tee $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
@@ -333,7 +353,8 @@ fi
 # subproject dependency we test for (here, classpath) changes.
 
 do_i_have "org.scala-sbt" "classpath_$SCALAVERSION-$SCALAHASH-SNAPSHOT" "$SBTVERSION"
-if [$? -ne 0 ]; then
+sbtres=$?
+if [ $sbtres -ne 0 ]; then
     cd $SBTDIR
     (test git clean -fxd) || exit 125
     (test sbtbuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
