@@ -26,6 +26,14 @@ function set_versions(){
     SCALAVERSION="$SCALAMAJOR.$SCALAMINOR.$SCALAPATCH"
     SCALASHORT="$SCALAMAJOR.$SCALAMINOR"
 
+    say "### SCALA version detected : $SCALAVERSION-$SCALAHASH"
+
+    SBINARYVERSION=$(sed -rn 's/[^t]*<sbinary\.version>([0-9]+\.[0-9]+\.[0-9]+(-pretending)?(-SNAPSHOT)?)<\/sbinary\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
+    if [ -z $SBINARYVERSION ]; then exit 125; fi
+    say "### SBINARY version detected: \"$SBINARYVERSION\""
+
+    # TODO : much better version detection: this is sensitive to
+    # the order in which the profiles are declared for sbt !
     SBTVERSION=$(sed -rn 's/[^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[M-R][0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
     if [ -z $SBTVERSION ]; then exit 125; fi
     say "### SBT version detected: \"$SBTVERSION\""
@@ -63,6 +71,43 @@ function ant-clean(){
     ant -Divy.cache.ttl.default=eternal all.clean
 }
 
+# do_i_have $groupId $artifactId $version tests if
+# $groupId:$artifactId:jar:$version is in the local maven repo
+function do_i_have(){
+    say "### local repo test: trying to find $1:$2:jar:$3"
+    MVN_TEST_DIR=$(mktemp -d -t $1XXX)
+    cd $MVN_TEST_DIR
+    cat > pom.xml <<EOF
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <groupId>com.typesafe</groupId>
+   <artifactId>typesafeDummy</artifactId>
+   <packaging>war</packaging>
+   <version>1.0-SNAPSHOT</version>
+   <name>Dummy</name>
+   <url>http://127.0.0.1</url>
+   <dependencies>
+      <dependency>
+         <groupId>$1</groupId>
+         <artifactId>$2</artifactId>
+         <version>$3</version>
+         <scope>test</scope>
+      </dependency>
+   </dependencies>
+</project>
+EOF
+    (test mvn $GENMVNOPTS test)
+    maven_fail_detect "dontstop"
+    $det=$?
+    rm -rf $MVN_TEST_DIR
+    if [ $det -ne 0]; then
+        say "### $1:$2:jar:$3 not in repo !"
+    else
+        say "### $1:$2:jar:$3 found !"
+    fi
+    return $det
+}
+
 function test() {
     echo "### $@"
     "$@"
@@ -83,11 +128,13 @@ function preparesbt(){
         OLD_SBT_REPO_FILE=$(mktemp -t sbtreposXXX)
         cat $HOME/.sbt/repositories > $OLD_SBT_REPO_FILE
     fi
-    echo '[repositories]' > $HOME/.sbt/repositories
-    echo '  local' >> $HOME/.sbt/repositories
-    echo '  maven-central' >> $HOME/.sbt/repositories
-    echo '  typesafe-ivy-releases: http://repo.typesafe.com/typesafe/ivy-releases/, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]' >> $HOME/.sbt/repositories
-    echo "  mavenLocal: file://$LOCAL_M2_REPO" >> $HOME/.sbt/repositories
+    cat > $HOME/.sbt/repositories <<EOF
+[repositories]
+  local
+  maven-central
+  typesafe-ivy-releases: http://repo.typesafe.com/typesafe/ivy-releases/, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]
+  mavenLocal: file:///$LOCAL_M2_REPO
+EOF
 }
 
 function cleanupsbt(){
@@ -140,6 +187,7 @@ function maven_fail_detect() {
             exit 0
         else
             say "### Failure not detected in log, continuing"
+            return 0
         fi
     else
         say "### Failure  detected in log, exiting with 1"
@@ -174,30 +222,38 @@ fi
 (test preparesbt) || exit 125
 
 # building Sbinary to a local maven repo
-cd $SBINARYDIR
-(test git clean -fxd) || exit 125
-(test sbinarybuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-sbinary_return=${PIPESTATUS[0]}
-if [ $sbinary_return -ne 0 ]; then
-    cd $ORIGPWD
-    say "### SCALA-SBINARY FAILED !"
-    exit 1
-else
-    say "### SCALA-SBINARY SUCCESS !"
+do_i_have "org.scala-tools.sbinary" "sbinary_$SCALAVERSION-$SCALAHASH-SNAPSHOT" "$SBINARYVERSION"
+sbinaryres=$?
+if [ $sbinaryres -ne 0 ]; then
+    say "### SBinary result $sbinaryres"
+    cd $SBINARYDIR
+    (test git clean -fxd) || exit 125
+    (test sbinarybuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+    sbinary_return=${PIPESTATUS[0]}
+    if [ $sbinary_return -ne 0 ]; then
+        cd $ORIGPWD
+        say "### SCALA-SBINARY FAILED !"
+        exit 1
+    else
+        say "### SCALA-SBINARY SUCCESS !"
+    fi
 fi
 
-
-# #building SBT
-cd $SBTDIR
-(test git clean -fxd) || exit 125
-(test sbtbuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-sbt_return=${PIPESTATUS[0]}
-if [ $sbt_return -ne 0 ]; then
-    cd $ORIGPWD
-    say "### SCALA-SBT FAILED !"
-    exit 1
-else
-    say "### SCALA-SBT SUCCESS !"
+# building SBT
+# TODO : this is brittle if the module dependencies for SBT change
+do_i_have "org.scala-sbt" "classpath_$SCALAVERSION-$SCALAHASH-SNAPSHOT" "$SBTVERSION"
+if [$? -ne 0 ]; then
+    cd $SBTDIR
+    (test git clean -fxd) || exit 125
+    (test sbtbuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+    sbt_return=${PIPESTATUS[0]}
+    if [ $sbt_return -ne 0 ]; then
+        cd $ORIGPWD
+        say "### SCALA-SBT FAILED !"
+        exit 1
+    else
+        say "### SCALA-SBT SUCCESS !"
+    fi
 fi
 
 # remove .sbt/repositories scaffolding
