@@ -321,7 +321,7 @@ function sbinarybuild(){
 # in the main log file. If so, it exit with error code 1. If not,
 # it exits with 0 or continues, depending if (resp.) <myString> is
 # empty or not.
-# This is mostly used as a sanity-check for failure
+# This is mostly used as a stateful sanity-check for failure.
 # :end docstring:
 
 function maven_fail_detect() {
@@ -457,7 +457,12 @@ if [ $refac_return -ne 0 ]; then
 else
     say "### SCALA-REFACTORING SUCCESS !"
 fi
-maven_fail_detect "DontStopOnSuccess"
+
+# Tricky : this turns off fail on error, but test() lifts the
+# restriction by killing the overall script in case of failure detection.
+set +e
+test maven_fail_detect "DontStopOnSuccess"
+set -e
 
 ######################
 # Building scala-ide #
