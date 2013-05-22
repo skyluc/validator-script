@@ -4,27 +4,31 @@
 # versions of sbinary, sbt, scala-refactoring and scala-ide.
 
 function usage() {
-    echo "Usage : $0 [-s] <basedir> <scala-commit>"
+    echo "Usage : $0 [-s <scala-commit>] [-b <basedir>]"
 }
 
 CLONESCALA=""
-set -- $(getopt dp $*)
+set -- $(getopt s:b: $*)
 while [ $# -gt 0 ]
 do
     case "$1" in
-    (-s) CLONESCALA=yes;;
+    (-s)    CLONESCALA=yes;
+            SCALACOMMIT=$2;
+            echo "processing Scala with commit $SCALACOMMIT";
+            shift;;
+    (-b) BASEDIR=$2; shift;;
     (--) shift; break;;
     (-*) echo "$0: error - unrecognized option $1" 1>&2; usage; exit 1;;
     esac
     shift
 done
 
-BASEDIR="$HOME/Scala"
-if [ ! -z $1 ]; then
-    BASEDIR=$1
+if [ ! -n $BASEDIR ]; then
+    BASEDIR=$(mktemp -dt scala-ide-validationXXX)
 fi
+echo "Will use $BASEDIR"
 
-if [ -z $2 ]; then SCALACOMMIT="master"; fi
+if [ -n $SCALACOMMIT ]; then SCALACOMMIT="master"; fi
 
 ORIGPWD=`pwd`
 SCALADIR="$BASEDIR/scala/"

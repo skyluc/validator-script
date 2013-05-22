@@ -1,4 +1,11 @@
 #!/bin/bash
+
+####################################################################
+# Build the whole chain from Scala (presumably downloaded from     #
+# artifactory) to Scala-IDE, assuming checkouts of the appropriate #
+# elements of said chain are organized in the $BASEDIR.            #
+####################################################################
+
 # This is for forcibly stopping the job from a subshell (see test
 # below).
 trap "exit 1" TERM
@@ -363,7 +370,7 @@ function maven_fail_detect() {
 
 # look for the command line options
 # again, single-letter options only because OSX's getopt is limited
-set -- $(getopt dp $*)
+set -- $(getopt db $*)
 while [ $# -gt 0 ]
 do
     case "$1" in
