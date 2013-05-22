@@ -470,6 +470,12 @@ set -e
 if [ $sbtres -ne 0 ]; then
     cd $SBTDIR
     (test git clean -fxd) || exit 125
+    # TODO : make this much less brittle (see version detection above)
+    # <--- this is super sensitive stuff ---->
+    set +e
+    git checkout "v${SBTVERSION%-SNAPSHOT}"
+    set -e
+    # <--- this is super sensitive stuff ---->
     (test sbtbuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
     sbt_return=${PIPESTATUS[0]}
     if [ $sbt_return -ne 0 ]; then
