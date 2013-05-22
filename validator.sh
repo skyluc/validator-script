@@ -20,7 +20,7 @@ RETRY=""
 BUILDIT=""
 
 ORIGPWD=`pwd`
-BASEDIR="$HOME/Scala"
+BASEDIR=$(mktemp -dt ScalaXXX)
 SCALADIR="$BASEDIR/scala/"
 SBTDIR="$BASEDIR/sbt/"
 SBINARYDIR="$BASEDIR/sbinary/"
@@ -39,8 +39,9 @@ LOGGINGDIR="$HOME"
 # :end docstring:
 
 function usage() {
-    echo "Usage : $0 [-b] [-d] "
-    echo "    -b : build Scala if it can't be downloaded"
+    echo "Usage : $0 [-b <basedir>] [-d] [-s]"
+    echo "    -b : basedir where to find checkouts"
+    echo "    -s : build Scala if it can't be downloaded"
     echo "    -d : retry downloading Scala rather than failing"
 }
 
@@ -370,12 +371,13 @@ function maven_fail_detect() {
 
 # look for the command line options
 # again, single-letter options only because OSX's getopt is limited
-set -- $(getopt db $*)
+set -- $(getopt sdb: $*)
 while [ $# -gt 0 ]
 do
     case "$1" in
+    (-b) BASEDIR=$2; shift;;
     (-d) RETRY=yes;;
-    (-b) BUILDIT=yes;;
+    (-s) BUILDIT=yes;;
     (--) shift; break;;
     (-*) echo "$0: error - unrecognized option $1" 1>&2; usage; exit 1;;
     esac
