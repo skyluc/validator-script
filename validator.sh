@@ -9,6 +9,9 @@ set -e
 # compilations. We should perhaps have a multi-dependency version
 # of do_i_have below
 
+RETRY=""
+BUILDIT=""
+
 ORIGPWD=`pwd`
 BASEDIR="$HOME/Scala"
 SCALADIR="$BASEDIR/scala/"
@@ -23,20 +26,26 @@ fi
 LOCAL_M2_REPO="$HOME/.m2/repository"
 LOGGINGDIR="$HOME"
 
+function usage() {
+    echo "Usage : $0 [-b] [-d] "
+    echo "    -b : build Scala if it can't be downloaded"
+    echo "    -d : retry downloading Scala rather than failing"
+}
+
+
 # :docstring with_backoff:
 # Usage: with_backoff <argument ...>
 # Executes <argument ...> with exponential backoff in case of
-# failure
+# failure.
 # :end docstring:
 
 function with_backoff(){
   local max_time=360
   local timeout=5
   local elapsed=0
-  local attempt=0
   local exitCode=1
 
-  while [[ $elapsed < $max_time ]]
+  while [[ $elapsed -lt $max_time ]]
   do
     set +e
     "$@"
@@ -48,7 +57,7 @@ function with_backoff(){
       break
     fi
 
-    echo "Failure! Retrying in $timeout.." 1>&2
+    echo "### Failure! Retrying in $timeout ..." 1>&2
     sleep $timeout
     elapsed=$(( elasped + timeout ))
     timeout=$(( timeout * 2 ))
@@ -56,7 +65,7 @@ function with_backoff(){
 
   if [[ $exitCode != 0 ]]
   then
-    echo "Abandoning! ($@)" 1>&2
+    echo "### Giving up! ($@)" 1>&2
   fi
 
   return $exitCode
@@ -347,6 +356,20 @@ function maven_fail_detect() {
 # BEGIN MAIN SCRIPT #
 #####################
 
+# look for the command line options
+# again, single-letter options only because OSX's getopt is limited
+set -- $(getopt dp $*)
+while [ $# -gt 0 ]
+do
+    case "$1" in
+    (-d) RETRY=yes;;
+    (-b) BUILDIT=yes;;
+    (--) shift; break;;
+    (-*) echo "$0: error - unrecognized option $1" 1>&2; usage; exit 1;;
+    esac
+    shift
+done
+
 set_versions
 say "### logfile $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
 # version logging
@@ -355,13 +378,15 @@ say "### logfile $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
 ######################################################
 # Building Scala, and publishing to local maven repo #
 ######################################################
-cd $SCALADIR
-(test ant-clean) || exit 125
-(test git clean -fxd) || exit 125
 # Try artifactory
 set +e
-get_full_scala
-getRetCode=$?
+if [ -z $RETRY ]; then
+    get_full_scala
+    getRetCode=$?
+else
+    with_backoff get_full_scala
+    getRetCode=$?
+fi
 set -e
 if [ $getRetCode -ne 0 ]; then
     say "### Fetching Scala $SCALAVERSION-$SCALAHASH-SNAPSHOT from artifactory failed ! (code $getRetCode)"
@@ -374,8 +399,17 @@ do_i_have "org.scala-lang" "scala-compiler" "$SCALAVERSION-$SCALAHASH-SNAPSHOT"
 already_built=$?
 set -e
 if [ $already_built -ne 0 ]; then
-    say "### the Scala compiler was not in local maven, building"
-    (test ant-full-scala) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+    if [ -z $BUILDIT ]; then
+        say "### the Scala compiler was not found in local maven,"
+        say "### and this script is not allowed to build it, exiting"
+        exit 1
+    else
+        say "### the Scala compiler was not in local maven, building"
+        cd $SCALADIR
+        (test ant-clean) || exit 125
+        (test git clean -fxd) || exit 125
+        (test ant-full-scala) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+    fi
 else
     say "### the Scala compiler was found in local maven for $SCALAHASH"
 fi
@@ -479,6 +513,7 @@ else
     say "### SCALA-IDE SUCCESS !"
 fi
 maven_fail_detect
+cd $ORIGPWD
 
 ###################
 # END MAIN SCRIPT #
