@@ -12,8 +12,7 @@ set -- $(getopt s:b: $*)
 while [ $# -gt 0 ]
 do
     case "$1" in
-    (-s)    CLONESCALA=yes;
-            SCALACOMMIT=$2;
+    (-s)    SCALACOMMIT=$2;
             echo "processing Scala with commit $SCALACOMMIT";
             shift;;
     (-b) BASEDIR=$2; shift;;
@@ -23,7 +22,7 @@ do
     shift
 done
 
-if [ ! -n $BASEDIR ]; then
+if [ ! -n "$BASEDIR" ]; then
     BASEDIR=$(mktemp -dt scala-ide-validationXXX)
 fi
 echo "Will use $BASEDIR"
@@ -40,7 +39,7 @@ IDEDIR="$BASEDIR/scala-ide/"
 if [ ! -d $BASEDIR ]; then mkdir -p $BASEDIR; fi
 
 cd $BASEDIR
-if [ ! -z $CLONESCALA ]; then
+if [ ! -z $SCALACOMMIT ]; then
     # on average, 1K commits betw 2 Scala milestones
     git clone --depth 2000 git://github.com/scala/scala.git
     pushd $SCALADIR

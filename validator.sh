@@ -21,14 +21,6 @@ BUILDIT=""
 
 ORIGPWD=`pwd`
 BASEDIR=$(mktemp -dt ScalaXXX)
-SCALADIR="$BASEDIR/scala/"
-SBTDIR="$BASEDIR/sbt/"
-SBINARYDIR="$BASEDIR/sbinary/"
-REFACDIR="$BASEDIR/scala-refactoring/"
-IDEDIR="$BASEDIR/scala-ide/"
-if [ -z $SBT_HOME ]; then
-    SBT_HOME=$HOME/.sbt/
-fi
 
 LOCAL_M2_REPO="$HOME/.m2/repository"
 LOGGINGDIR="$HOME"
@@ -39,10 +31,12 @@ LOGGINGDIR="$HOME"
 # :end docstring:
 
 function usage() {
-    echo "Usage : $0 [-b <basedir>] [-d] [-s]"
+    echo "Usage : $0 [-b <basedir>] [-d] [-h <scalahash>] [-s]"
     echo "    -b : basedir where to find checkouts"
     echo "    -s : build Scala if it can't be downloaded"
+    echo "    -h : the 7-letter abbrev of the hash to build/retrieve"
     echo "    -d : retry downloading Scala rather than failing"
+    echo "Note : either -s or -h <scalahash> must be used"
 }
 
 
@@ -90,9 +84,11 @@ function with_backoff(){
 # :end docstring:
 
 function set_versions(){
-    pushd $SCALADIR
-    SCALAHASH=$(git rev-parse HEAD | cut -c 1-7)
+    if [[ ! -n $SCALAHASH && -n $BUILDIT ]]; then
+        pushd $SCALADIR
+        SCALAHASH=$(git rev-parse HEAD | cut -c 1-7)
     popd
+    fi
     # despite the name, this has nothing to do with Scala, it's a
     # vanilla timestamp
     SCALADATE=`date +%Y-%m-%d-%H%M%S`
@@ -371,18 +367,34 @@ function maven_fail_detect() {
 
 # look for the command line options
 # again, single-letter options only because OSX's getopt is limited
-set -- $(getopt sdb: $*)
+set -- $(getopt sdb:h: $*)
 while [ $# -gt 0 ]
 do
     case "$1" in
     (-b) BASEDIR=$2; shift;;
     (-d) RETRY=yes;;
     (-s) BUILDIT=yes;;
+    (-h) SCALAHASH=$2;;
     (--) shift; break;;
     (-*) echo "$0: error - unrecognized option $1" 1>&2; usage; exit 1;;
     esac
     shift
 done
+
+if [[ ! -n $BUILDIT && ! -n $SCALAHASH ]]; then
+    echo "-h must be used when not building Scala from source"
+    usage
+    exit 1
+fi
+
+SCALADIR="$BASEDIR/scala/"
+SBTDIR="$BASEDIR/sbt/"
+SBINARYDIR="$BASEDIR/sbinary/"
+REFACDIR="$BASEDIR/scala-refactoring/"
+IDEDIR="$BASEDIR/scala-ide/"
+if [ -z $SBT_HOME ]; then
+    SBT_HOME=$HOME/.sbt/
+fi
 
 set_versions
 say "### logfile $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
