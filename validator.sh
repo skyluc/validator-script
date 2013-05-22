@@ -26,6 +26,11 @@ fi
 LOCAL_M2_REPO="$HOME/.m2/repository"
 LOGGINGDIR="$HOME"
 
+# :docstring usage:
+# Usage: usage
+# Prints a succint option help message.
+# :end docstring:
+
 function usage() {
     echo "Usage : $0 [-b] [-d] "
     echo "    -b : build Scala if it can't be downloaded"
