@@ -89,6 +89,9 @@ function set_versions(){
         SCALAHASH=$(git rev-parse HEAD | cut -c 1-7)
     popd
     fi
+    if [ ${#SCALAHASH} -gt 7 ]; then
+        SCALAHASH=`echo $SCALAHASH|cut -c 1-7`
+    fi
     # despite the name, this has nothing to do with Scala, it's a
     # vanilla timestamp
     SCALADATE=`date +%Y-%m-%d-%H%M%S`
