@@ -154,7 +154,7 @@ function get_full_scala(){
 # :end docstring:
 
 function ant-full-scala(){
-    ant distpack -Dmaven.version.suffix="-`git rev-parse HEAD|cut -c 1-7`-SNAPSHOT"
+    ant distpack -Dmaven.version.suffix="-`git rev-parse HEAD|cut -c 1-7`-SNAPSHOT" -Dlocal.snapshot.repository="$LOCAL_M2_REPO"
     if [ $? -ne 0 ]; then
         echo "### SCALA FAILED"
         kill -s TERM $TOP_PID
