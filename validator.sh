@@ -547,7 +547,9 @@ if [ $ide_return -ne 0 ]; then
 else
     say "### SCALA-IDE SUCCESS !"
 fi
-maven_fail_detect
+set +e
+test maven_fail_detect
+set -e
 cd $ORIGPWD
 exit 0
 
