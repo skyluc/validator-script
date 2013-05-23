@@ -339,7 +339,7 @@ function sbinarybuild(){
 # :docstring maven_fail_detect:
 # Usage : maven_fail_detect [<myString>]
 # This tests if a maven failure ("BUILD FAILURE") was encountered
-# in the main log file. If so, it exit with error code 1. If not,
+# in the main log file. If so, it exits with error code 1. If not,
 # it exits with 0 or continues, depending if (resp.) <myString> is
 # empty or not.
 # This is mostly used as a stateful sanity-check for failure.
@@ -549,6 +549,7 @@ else
 fi
 maven_fail_detect
 cd $ORIGPWD
+exit 0
 
 ###################
 # END MAIN SCRIPT #
