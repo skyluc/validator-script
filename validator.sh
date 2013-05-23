@@ -36,6 +36,7 @@ function usage() {
     echo "    -s : build Scala if it can't be downloaded"
     echo "    -h : the 7-letter abbrev of the hash to build/retrieve"
     echo "    -d : retry downloading Scala rather than failing"
+    echo "    -l : the local maven repo to use (default ~/.m2/repository) "
     echo "Note : either -s or -h <scalahash> must be used"
 }
 
@@ -370,7 +371,7 @@ function maven_fail_detect() {
 
 # look for the command line options
 # again, single-letter options only because OSX's getopt is limited
-set -- $(getopt sdb:h: $*)
+set -- $(getopt sdb:h:l: $*)
 while [ $# -gt 0 ]
 do
     case "$1" in
@@ -378,6 +379,7 @@ do
     (-d) RETRY=yes;;
     (-s) BUILDIT=yes;;
     (-h) SCALAHASH=$2;;
+    (-l) LOCAL_M2_REPO=$2;;
     (--) shift; break;;
     (-*) echo "$0: error - unrecognized option $1" 1>&2; usage; exit 1;;
     esac
