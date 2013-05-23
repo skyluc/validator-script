@@ -40,7 +40,6 @@ function usage() {
     echo "Note : either -s or -h <scalahash> must be used"
 }
 
-
 # :docstring with_backoff:
 # Usage: with_backoff <argument ...>
 # Executes <argument ...> with exponential backoff in case of
@@ -85,7 +84,7 @@ function with_backoff(){
 # :end docstring:
 
 function set_versions(){
-    if [[ ! -n $SCALAHASH && -n $BUILDIT ]]; then
+    if [[ ! -n $SCALAHASH || -n $BUILDIT ]]; then
         pushd $SCALADIR
         SCALAHASH=$(git rev-parse HEAD | cut -c 1-7)
     popd
@@ -379,13 +378,13 @@ do
     shift
 done
 
-if [[ ! -n $BUILDIT && ! -n $SCALAHASH ]]; then
-    echo "-h must be used when not building Scala from source"
+SCALADIR="$BASEDIR/scala/"
+if [[ ! -n $BUILDIT && ! -n $SCALAHASH && ! -d $SCALADIR]]; then
+    echo "-h must be used or a source repo provided when not building Scala from source"
     usage
     exit 1
 fi
 
-SCALADIR="$BASEDIR/scala/"
 SBTDIR="$BASEDIR/sbt/"
 SBINARYDIR="$BASEDIR/sbinary/"
 REFACDIR="$BASEDIR/scala-refactoring/"
