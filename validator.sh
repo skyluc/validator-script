@@ -126,13 +126,6 @@ function set_versions(){
     echo "### SBT version detected: \"$SBTVERSION\""| tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 }
 
-# This is here because it requires set_versions
-GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_M2_REPO}"
-#REFACTOPS="-Dmaven.test.skip=true"
- REFACOPTS=""
-# IDEOPTS="-Drepo.typesafe=http://repo.typesafe.com/typesafe/ide-$SCALASHORT"
-IDEOPTS=""
-
 # :docstring get_full_scala:
 # Usage: get_full_scala
 # This attempts to download Scala from Artifactory's
@@ -403,6 +396,12 @@ fi
 
 set_versions
 say "### logfile $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log"
+# This is here because it requires set_versions
+GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_M2_REPO}"
+#REFACTOPS="-Dmaven.test.skip=true"
+ REFACOPTS=""
+# IDEOPTS="-Drepo.typesafe=http://repo.typesafe.com/typesafe/ide-$SCALASHORT"
+IDEOPTS=""
 # version logging
 (test mvn -version) | tee $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
 
