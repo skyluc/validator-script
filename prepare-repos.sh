@@ -63,7 +63,7 @@ do
     shift
 done
 
-if [ ! -n "$BASEDIR" ]; then
+if [ -z $BASEDIR ]; then
     BASEDIR=$(mktemp -dt scala-ide-validationXXX)
 fi
 echo "Will use $BASEDIR"
@@ -83,7 +83,7 @@ cd $BASEDIR
 # on average, 80 commits betw 2 sbt milestones
 # on average, 50 commits betw 2 refactoring releases
 # on average, 350 commits betw 2 ide releases
-if [ ! -n $SCALACOMMIT ]; then
+if [ -z $SCALACOMMIT ]; then
     getOrUpdate $SCALADIR $SCALAURL $SCALACOMMIT 2000
 fi
 getOrUpdate $SBINARYDIR $SBINARYURL "origin/HEAD" 20

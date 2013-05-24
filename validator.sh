@@ -84,7 +84,7 @@ function with_backoff(){
 # :end docstring:
 
 function set_versions(){
-    if [[ -n $SCALAHASH || ! -n $BUILDIT ]]; then
+    if [[ -z $SCALAHASH || ! -z $BUILDIT ]]; then
         pushd $SCALADIR
         SCALAHASH=$(git rev-parse HEAD | cut -c 1-7)
         popd
@@ -139,7 +139,7 @@ function get_full_scala(){
     && mvn $GENMVNOPTS org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
     -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
     -Dartifact=org.scala-lang:scala-library:$SCALAVERSION-$SCALAHASH-SNAPSHOT
-    if [[ ${PIPESTATUS[0]} -eq 0 && ${PIPESTATUS[1]} -eq 0 ]]; then
+    if [[ (${PIPESTATUS[0]} -eq 0) &&  (${PIPESTATUS[1]} -eq 0) ]]; then
         return 0
     else
         return 1
@@ -379,7 +379,7 @@ do
 done
 
 SCALADIR="$BASEDIR/scala/"
-if [[ -n $BUILDIT && -n $SCALAHASH && ! -d $SCALADIR]]; then
+if [ -z $BUILDIT && -z $SCALAHASH && ! -d $SCALADIR ]; then
     echo "-h must be used or a source repo provided when not building Scala from source"
     usage
     exit 1
