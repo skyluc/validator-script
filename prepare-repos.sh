@@ -13,6 +13,18 @@ function usage() {
     echo "Usage : $0 [-s <scala-commit>] [-b <basedir>]"
 }
 
+
+# :docstring getOrUpdate:
+# Usage : getOrUpdate <directory> <url> <reference> <n>
+#
+# Updates or clones the checkout of <reference> taken from the
+# git repo at <url> into the local directory
+# <directory>. <reference> should not be older than the last <n>
+# commits from the top of the repo. at creation of the checkout.
+# All arguments are required.
+#
+# :end docstring:
+
 function getOrUpdate(){
     local deepen=''
     if [ ! -d $1 ]; then
