@@ -27,8 +27,6 @@ if [ ! -n "$BASEDIR" ]; then
 fi
 echo "Will use $BASEDIR"
 
-if [ -n $SCALACOMMIT ]; then SCALACOMMIT="master"; fi
-
 ORIGPWD=`pwd`
 SCALADIR="$BASEDIR/scala/"
 SBTDIR="$BASEDIR/sbt/"
@@ -39,31 +37,31 @@ IDEDIR="$BASEDIR/scala-ide/"
 if [ ! -d $BASEDIR ]; then mkdir -p $BASEDIR; fi
 
 cd $BASEDIR
-if [ ! -z $SCALACOMMIT ]; then
+if [ ! -n $SCALACOMMIT ]; then
     # on average, 1K commits betw 2 Scala milestones
-    git clone --depth 2000 git://github.com/scala/scala.git
+    git clone --depth 1 git://github.com/scala/scala.git
     pushd $SCALADIR
     git checkout $SCALACOMMIT
     popd
 fi
 
 # on average, < 10 commits betw sbinary chosen versions
-git clone --depth 20 git://github.com/scala-ide/sbinary.git
+git clone --depth 1 git://github.com/scala-ide/sbinary.git
 # this depends on the fact that the default clone checkout is the
 # dev branch (master or the local equivalent)
 
 # on average, 80 commits betw 2 sbt milestones
-git clone --depth 160 git://github.com/sbt/sbt.git
+git clone --depth 1 git://github.com/sbt/sbt.git
 # this depends on the fact that the default clone checkout is the
 # dev branch (master or the local equivalent)
 
 # on average, 50 commits betw 2 refactoring releases
-git clone --depth 100 git://github.com/scala-ide/scala-refactoring.git
+git clone --depth 1 git://github.com/scala-ide/scala-refactoring.git
 # this depends on the fact that the default clone checkout is the
 # dev branch (master or the local equivalent)
 
 # on average, 350 commits betw 2 ide releases
-git clone --depth 700 git://github.com/scala-ide/scala-ide.git
+git clone --depth 1 git://github.com/scala-ide/scala-ide.git
 # this depends on the fact that the default clone checkout is the
 # dev branch (master or the local equivalent)
 
