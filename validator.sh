@@ -84,10 +84,10 @@ function with_backoff(){
 # :end docstring:
 
 function set_versions(){
-    if [[ ! -n $SCALAHASH || -n $BUILDIT ]]; then
+    if [[ -n $SCALAHASH || ! -n $BUILDIT ]]; then
         pushd $SCALADIR
         SCALAHASH=$(git rev-parse HEAD | cut -c 1-7)
-    popd
+        popd
     fi
     if [ ${#SCALAHASH} -gt 7 ]; then
         SCALAHASH=`echo $SCALAHASH|cut -c 1-7`
@@ -379,7 +379,7 @@ do
 done
 
 SCALADIR="$BASEDIR/scala/"
-if [[ ! -n $BUILDIT && ! -n $SCALAHASH && ! -d $SCALADIR]]; then
+if [[ -n $BUILDIT && -n $SCALAHASH && ! -d $SCALADIR]]; then
     echo "-h must be used or a source repo provided when not building Scala from source"
     usage
     exit 1
