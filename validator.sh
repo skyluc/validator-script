@@ -96,9 +96,19 @@ function set_versions(){
     # vanilla timestamp
     SCALADATE=`date +%Y-%m-%d-%H%M%S`
 
-    SCALAMAJOR=$(sed -n 's/version.major=\([0-9]\)/\1/p' $SCALADIR/build.number)
-    SCALAMINOR=$(sed -n 's/version.minor=\([0-9]\)/\1/p' $SCALADIR/build.number)
-    SCALAPATCH=$(sed -n 's/version.patch=\([0-9]\)/\1/p' $SCALADIR/build.number)
+    # This is dirty!
+    if [ ! -f $SCALADIR/build.number ]; then
+        # <--- this is super sensitive stuff ---->
+        SCALAMAJOR="2"
+        SCALAMINOR="11"
+        SCALAPATCH="0"
+        # <--- this is super sensitive stuff ---->
+    else
+        SCALAMAJOR=$(sed -n 's/version.major=\([0-9]\)/\1/p' $SCALADIR/build.number)
+        SCALAMINOR=$(sed -n 's/version.minor=\([0-9]\)/\1/p' $SCALADIR/build.number)
+        SCALAPATCH=$(sed -n 's/version.patch=\([0-9]\)/\1/p' $SCALADIR/build.number)
+    fi
+
     SCALAVERSION="$SCALAMAJOR.$SCALAMINOR.$SCALAPATCH"
     SCALASHORT="$SCALAMAJOR.$SCALAMINOR"
 
@@ -385,7 +395,7 @@ do
 done
 
 SCALADIR="$BASEDIR/scala/"
-if [ -z $BUILDIT ] && [ -z $SCALAHASH && [ ! -d $SCALADIR ]; then
+if [[ -z $BUILDIT && -z $SCALAHASH && ! -d $SCALADIR ]]; then
     echo "-h must be used or a source repo provided when not building Scala from source"
     usage
     exit 1
