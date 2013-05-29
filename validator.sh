@@ -140,6 +140,12 @@ function get_full_scala(){
     -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
     -Dartifact=org.scala-lang:scala-library:$SCALAVERSION-$SCALAHASH-SNAPSHOT
     if [[ (${PIPESTATUS[0]} -eq 0) &&  (${PIPESTATUS[1]} -eq 0) ]]; then
+        # The maven dependency plugin mangles dependency metadata
+        # management
+        for i in $LOCAL_M2_REPO/org/scala-lang/*/$SCALAVERSION-$SCALAHASH-SNAPSHOT/maven-metadata-temp.xml
+        do
+            cp $i ${i%-temp.xml}-local.xml
+        done
         return 0
     else
         return 1
@@ -379,7 +385,7 @@ do
 done
 
 SCALADIR="$BASEDIR/scala/"
-if [ -z $BUILDIT && -z $SCALAHASH && ! -d $SCALADIR ]; then
+if [ -z $BUILDIT ] && [ -z $SCALAHASH && [ ! -d $SCALADIR ]; then
     echo "-h must be used or a source repo provided when not building Scala from source"
     usage
     exit 1
