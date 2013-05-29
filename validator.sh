@@ -143,23 +143,64 @@ function set_versions(){
 # :end docstring:
 
 function get_full_scala(){
-    mvn $GENMVNOPTS org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
-    -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
-    -Dartifact=org.scala-lang:scala-compiler:$SCALAVERSION-$SCALAHASH-SNAPSHOT \
-    && mvn $GENMVNOPTS org.apache.maven.plugins:maven-dependency-plugin:2.1:get \
-    -DrepoUrl=http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/ \
-    -Dartifact=org.scala-lang:scala-library:$SCALAVERSION-$SCALAHASH-SNAPSHOT
-    if [[ (${PIPESTATUS[0]} -eq 0) &&  (${PIPESTATUS[1]} -eq 0) ]]; then
+    CALLBACK=$(pwd)
+    MVN_TEST_DIR=$(mktemp -d -t scala-from-artifactoryXXX)
+    cd $MVN_TEST_DIR
+    cat > pom.xml <<EOF
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <groupId>com.typesafe</groupId>
+   <artifactId>typesafeDummy</artifactId>
+   <packaging>war</packaging>
+   <version>1.0-SNAPSHOT</version>
+   <name>Dummy</name>
+   <url>http://127.0.0.1</url>
+   <dependencies>
+      <dependency>
+         <groupId>org.scala-lang</groupId>
+         <artifactId>scala-compiler</artifactId>
+         <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
+         <scope>test</scope>
+      </dependency>
+      <dependency>
+         <groupId>org.scala-lang</groupId>
+         <artifactId>scala-library</artifactId>
+         <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
+         <scope>test</scope>
+      </dependency>
+      <dependency>
+         <groupId>org.scala-lang</groupId>
+         <artifactId>jline</artifactId>
+         <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
+         <scope>test</scope>
+      </dependency>
+   </dependencies>
+   <repositories>
+     <repository>
+       <id>typesafe-artifactory-snapshots</id>
+       <name>Typesafe PR validation Snapshots</name>
+       <url>http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/</url>
+       <snapshots><enabled>true</enabled></snapshots>
+     </repository>
+   </repositories>
+</project>
+EOF
+    (mvn $GENMVNOPTS -U -DincludeScope=test org.apache.maven.plugins:maven-dependency-plugin:go-offline)
+    detmvn=${PIPESTATUS[0]}
+    cd $CALLBACK
+    rm -rf $MVN_TEST_DIR
+    if [[ $detmvn -eq 0 ]]; then
         # The maven dependency plugin mangles dependency metadata
         # management
-        for i in $LOCAL_M2_REPO/org/scala-lang/*/$SCALAVERSION-$SCALAHASH-SNAPSHOT/maven-metadata-temp.xml
+        for i in $LOCAL_M2_REPO/org/scala-lang/*/$SCALAVERSION-$SCALAHASH-SNAPSHOT/maven-metadata-typesafe-artifactory-snapshots.xml
         do
-            cp $i ${i%-temp.xml}-local.xml
+            cp $i ${i%-typesafe-artifactory-snapshots.xml}-local.xml
         done
-        return 0
+        say "### scala compiler/library $SCALAVERSION-$SCALAHASH-SNAPSHOT found in artifactory snapshots !"
     else
-        return 1
+        say "### scala compiler/library $SCALAVERSION-$SCALAHASH-SNAPSHOT not found in artifactory snapshots !"
     fi
+    return $detmvn
 }
 
 # :docstring ant-full-scala:
@@ -220,7 +261,7 @@ function do_i_have(){
    </dependencies>
 </project>
 EOF
-    (mvn $GENMVNOPTS test)
+    (mvn $GENMVNOPTS -o test)
     detmvn=${PIPESTATUS[0]}
     cd $CALLBACK
     rm -rf $MVN_TEST_DIR
