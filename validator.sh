@@ -11,14 +11,6 @@
 trap "exit 1" TERM
 export TOP_PID=$$
 set -e
-# This is for patching the IDE below
-SOURCE="${BASH_SOURCE[0]}"
-while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
-  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-  SOURCE="$(readlink "$SOURCE")"
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
-done
-SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 # Known problems : does not fare well with interrupted, partial
 # compilations. We should perhaps have a multi-dependency version
@@ -173,24 +165,6 @@ function get_full_scala(){
       <dependency>
          <groupId>org.scala-lang</groupId>
          <artifactId>scala-library</artifactId>
-         <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
-         <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.scala-lang</groupId>
-         <artifactId>scala-swing</artifactId>
-         <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
-         <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.scala-lang</groupId>
-         <artifactId>scala-reflect</artifactId>
-         <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
-         <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.scala-lang</groupId>
-         <artifactId>scala-actors</artifactId>
          <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
          <scope>test</scope>
       </dependency>
@@ -621,7 +595,6 @@ set -e
 ######################
 cd $IDEDIR
 (test git clean -fxd) || exit 125
-patch -N -p0 < $SCRIPT_DIR/ide-no-sources.patch||:
 (test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 # (test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dsbt.compiled.version=$SCALAVERSION-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 ide_return=${PIPESTATUS[0]}
