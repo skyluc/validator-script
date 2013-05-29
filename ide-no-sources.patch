@@ -1,0 +1,158 @@
+diff --git org.scala-ide.scala.compiler/pom.xml org.scala-ide.scala.compiler/pom.xml
+index 5c1d873..cecf733 100644
+--- org.scala-ide.scala.compiler/pom.xml
++++ org.scala-ide.scala.compiler/pom.xml
+@@ -40,29 +40,6 @@
+           <plugin>
+             <groupId>org.apache.maven.plugins</groupId>
+             <artifactId>maven-dependency-plugin</artifactId>
+-            <executions>
+-              <execution>
+-                <!-- add the source jar, to be able to attach the source to the Scala container. And the continuation plug-in -->
+-                <id>copy.reflect</id>
+-                <phase>compile</phase>
+-                <goals>
+-                  <goal>copy</goal>
+-                </goals>
+-                <configuration>
+-                  <artifactItems>
+-                    <artifactItem>
+-                      <groupId>org.scala-lang</groupId>
+-                      <artifactId>scala-reflect</artifactId>
+-                      <classifier>sources</classifier>
+-                      <type>jar</type>
+-                      <destFileName>scala-reflect-src.jar</destFileName>
+-                    </artifactItem>
+-                  </artifactItems>
+-                  <stripVersion>true</stripVersion>
+-                  <outputDirectory>${project.build.directory}/lib</outputDirectory>
+-                </configuration>
+-              </execution>
+-            </executions>
+           </plugin>
+         </plugins>
+       </build>
+@@ -83,29 +60,6 @@
+           <plugin>
+             <groupId>org.apache.maven.plugins</groupId>
+             <artifactId>maven-dependency-plugin</artifactId>
+-            <executions>
+-              <execution>
+-                <!-- add the source jar, to be able to attach the source to the Scala container. And the continuation plug-in -->
+-                <id>copy.reflect</id>
+-                <phase>compile</phase>
+-                <goals>
+-                  <goal>copy</goal>
+-                </goals>
+-                <configuration>
+-                  <artifactItems>
+-                    <artifactItem>
+-                      <groupId>org.scala-lang</groupId>
+-                      <artifactId>scala-reflect</artifactId>
+-                      <classifier>sources</classifier>
+-                      <type>jar</type>
+-                      <destFileName>scala-reflect-src.jar</destFileName>
+-                    </artifactItem>
+-                  </artifactItems>
+-                  <stripVersion>true</stripVersion>
+-                  <outputDirectory>${project.build.directory}/lib</outputDirectory>
+-                </configuration>
+-              </execution>
+-            </executions>
+           </plugin>
+         </plugins>
+       </build>
+@@ -136,32 +90,6 @@
+               </artifactItems>
+             </configuration>
+           </execution>
+-          <execution>
+-            <!-- add the source jar, to be able to attach the source to the Scala container. And the continuation plug-in -->
+-            <id>copy</id>
+-            <phase>compile</phase>
+-            <goals>
+-              <goal>copy</goal>
+-            </goals>
+-            <configuration>
+-              <artifactItems>
+-                <artifactItem>
+-                  <groupId>org.scala-lang</groupId>
+-                  <artifactId>scala-compiler</artifactId>
+-                  <classifier>sources</classifier>
+-                  <type>jar</type>
+-                  <destFileName>scala-compiler-src.jar</destFileName>
+-                </artifactItem>
+-                <artifactItem>
+-                  <groupId>org.scala-lang.plugins</groupId>
+-                  <artifactId>continuations</artifactId>
+-                  <type>jar</type>
+-                </artifactItem>
+-              </artifactItems>
+-              <stripVersion>true</stripVersion>
+-              <outputDirectory>${project.build.directory}/lib</outputDirectory>
+-            </configuration>
+-          </execution>
+         </executions>
+       </plugin>
+       <plugin>
+@@ -199,7 +127,6 @@
+             ch.epfl.lamp.*;version=${osgi.version.number}</_exportcontents>
+             <Embed-Directory>lib</Embed-Directory>
+             <Embed-StripVersion>true</Embed-StripVersion>
+-            <Include-Resource>lib=${project.build.directory}/lib</Include-Resource>
+             <Import-Package>!javax.script.*,!javax.tools.*,!jline.*,!scala.tools.jline.*,!sun.misc,scala.reflect,*</Import-Package>
+           </instructions>
+         </configuration>
+diff --git org.scala-ide.scala.library/pom.xml org.scala-ide.scala.library/pom.xml
+index 403c475..0d5110a 100644
+--- org.scala-ide.scala.library/pom.xml
++++ org.scala-ide.scala.library/pom.xml
+@@ -59,40 +59,6 @@
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-dependency-plugin</artifactId>
+         <executions>
+-          <execution>
+-            <!-- add the source jars, to be able to attach the source to the Scala container -->
+-            <id>copy</id>
+-            <phase>compile</phase>
+-            <goals>
+-              <goal>copy</goal>
+-            </goals>
+-            <configuration>
+-              <artifactItems>
+-                <artifactItem>
+-                  <groupId>org.scala-lang</groupId>
+-                  <artifactId>scala-library</artifactId>
+-                  <classifier>sources</classifier>
+-                  <type>jar</type>
+-                  <destFileName>scala-library-src.jar</destFileName>
+-                </artifactItem>
+-                <artifactItem>
+-                  <groupId>org.scala-lang</groupId>
+-                  <artifactId>scala-swing</artifactId>
+-                  <classifier>sources</classifier>
+-                  <type>jar</type>
+-                  <destFileName>scala-swing-src.jar</destFileName>
+-                </artifactItem>
+-                <artifactItem>
+-                  <groupId>org.scala-lang</groupId>
+-                  <artifactId>${scala.library.third-part}</artifactId>
+-                  <classifier>sources</classifier>
+-                  <type>jar</type>
+-                  <destFileName>${scala.library.third-part}-src.jar</destFileName>
+-                </artifactItem>
+-              </artifactItems>
+-              <outputDirectory>${project.build.directory}/lib</outputDirectory>
+-            </configuration>
+-          </execution>
+           <!-- extract the library.properties file, to get the osgi.version.number value -->
+           <execution>
+             <id>unpack</id>
+@@ -145,7 +111,6 @@
+             <_exportcontents>scala.reflect;version=${osgi.version.number},scala.*;version=${osgi.version.number}</_exportcontents>
+             <Embed-Directory>lib</Embed-Directory>
+             <Embed-StripVersion>true</Embed-StripVersion>
+-            <Include-Resource>lib=${project.build.directory}/lib</Include-Resource>
+             <Import-Package>!javax.script.*,!sun.misc,*</Import-Package>
+           </instructions>
+         </configuration>
