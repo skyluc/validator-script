@@ -154,7 +154,7 @@ function do_i_have(){
    </dependencies>
 </project>
 EOF
-    (mvn $GENMVNOPTS -o test)
+    (mvn $GENMVNOPTS  test)
     detmvn=${PIPESTATUS[0]}
     cd $CALLBACK
     rm -rf $MVN_TEST_DIR
