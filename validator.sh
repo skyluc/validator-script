@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -xe
 
 ####################################################################
 # Build the whole chain from Scala (presumably downloaded from     #
@@ -362,9 +362,7 @@ if [ -d $SCALADIR/dists/maven/latest ]; then
     say "### found a $SCALADIR/dists/maven/latest, deploying it"
     # Let's deploy the found compiler
     cd $SCALADIR/dists/maven/latest
-    # <--- this is super sensitive stuff ---->
     (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-    # <--- this is super sensitive stuff ---->
     cd -
 fi
 
