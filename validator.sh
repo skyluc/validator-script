@@ -20,9 +20,9 @@ RETRY=""
 BUILDIT=""
 
 ORIGPWD=`pwd`
-BASEDIR="$HOME/Scala"
+BASEDIR=$ORIGPWD
 
-LOCAL_M2_REPO="$HOME/.m2/repository"
+LOCAL_M2_REPO="$BASEDIR/m2repo"
 LOGGINGDIR="$HOME"
 
 # :docstring usage:
@@ -35,47 +35,8 @@ function usage() {
     echo "    -b : basedir where to find checkouts"
     echo "    -s : build Scala if it can't be downloaded"
     echo "    -h : the 7-letter abbrev of the hash to build/retrieve"
-    echo "    -d : retry downloading Scala rather than failing"
     echo "    -l : the local maven repo to use (default ~/.m2/repository) "
     echo "Note : either -s or -h <scalahash> must be used"
-}
-
-# :docstring with_backoff:
-# Usage: with_backoff <argument ...>
-# Executes <argument ...> with exponential backoff in case of
-# failure.
-# :end docstring:
-
-function with_backoff(){
-  local max_time=360
-  local timeout=5
-  local elapsed=0
-  local exitCode=1
-
-  while [[ $elapsed -lt $max_time ]]
-  do
-    set +e
-    "$@"
-    exitCode=$?
-    set -e
-
-    if [[ $exitCode == 0 ]]
-    then
-      break
-    fi
-
-    echo "### Failure! Retrying in $timeout ..." 1>&2
-    sleep $timeout
-    elapsed=$(( elasped + timeout ))
-    timeout=$(( timeout * 2 ))
-  done
-
-  if [[ $exitCode != 0 ]]
-  then
-    echo "### Giving up! ($@)" 1>&2
-  fi
-
-  return $exitCode
 }
 
 # :docstring set_versions:
@@ -133,74 +94,6 @@ function set_versions(){
     # <--- this is super sensitive stuff ---->
     if [ -z $SBTVERSION ]; then exit 125; fi
     echo "### SBT version detected: \"$SBTVERSION\""| tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-}
-
-# :docstring get_full_scala:
-# Usage: get_full_scala
-# This attempts to download Scala from Artifactory's
-# typesafe/scala-pr-validation-snapshot, and copies it to the
-# local maven repo
-# :end docstring:
-
-function get_full_scala(){
-    CALLBACK=$(pwd)
-    MVN_TEST_DIR=$(mktemp -d -t scala-from-artifactoryXXX)
-    cd $MVN_TEST_DIR
-    cat > pom.xml <<EOF
- <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-   <modelVersion>4.0.0</modelVersion>
-   <groupId>com.typesafe</groupId>
-   <artifactId>typesafeDummy</artifactId>
-   <packaging>war</packaging>
-   <version>1.0-SNAPSHOT</version>
-   <name>Dummy</name>
-   <url>http://127.0.0.1</url>
-   <dependencies>
-      <dependency>
-         <groupId>org.scala-lang</groupId>
-         <artifactId>scala-compiler</artifactId>
-         <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
-         <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.scala-lang</groupId>
-         <artifactId>scala-library</artifactId>
-         <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
-         <scope>test</scope>
-      </dependency>
-      <dependency>
-         <groupId>org.scala-lang</groupId>
-         <artifactId>jline</artifactId>
-         <version>$SCALAVERSION-$SCALAHASH-SNAPSHOT</version>
-         <scope>test</scope>
-      </dependency>
-   </dependencies>
-   <repositories>
-     <repository>
-       <id>typesafe-artifactory-snapshots</id>
-       <name>Typesafe PR validation Snapshots</name>
-       <url>http://typesafe.artifactoryonline.com/typesafe/scala-pr-validation-snapshots/</url>
-       <snapshots><enabled>true</enabled></snapshots>
-     </repository>
-   </repositories>
-</project>
-EOF
-    (mvn $GENMVNOPTS -U -DincludeScope=test org.apache.maven.plugins:maven-dependency-plugin:go-offline)
-    detmvn=${PIPESTATUS[0]}
-    cd $CALLBACK
-    rm -rf $MVN_TEST_DIR
-    if [[ $detmvn -eq 0 ]]; then
-        # The maven dependency plugin mangles dependency metadata
-        # management
-        for i in $LOCAL_M2_REPO/org/scala-lang/*/$SCALAVERSION-$SCALAHASH-SNAPSHOT/maven-metadata-typesafe-artifactory-snapshots.xml
-        do
-            cp $i ${i%-typesafe-artifactory-snapshots.xml}-local.xml
-        done
-        say "### scala compiler/library $SCALAVERSION-$SCALAHASH-SNAPSHOT found in artifactory snapshots !"
-    else
-        say "### scala compiler/library $SCALAVERSION-$SCALAHASH-SNAPSHOT not found in artifactory snapshots !"
-    fi
-    return $detmvn
 }
 
 # :docstring ant-full-scala:
@@ -420,12 +313,11 @@ function maven_fail_detect() {
 
 # look for the command line options
 # again, single-letter options only because OSX's getopt is limited
-set -- $(getopt sdb:h:l: $*)
+set -- $(getopt sb:h:l: $*)
 while [ $# -gt 0 ]
 do
     case "$1" in
     (-b) BASEDIR=$2; shift;;
-    (-d) RETRY=yes;;
     (-s) BUILDIT=yes;;
     (-h) SCALAHASH=$2;;
     (-l) LOCAL_M2_REPO=$2;;
@@ -464,18 +356,16 @@ IDEOPTS=""
 ######################################################
 # Building Scala, and publishing to local maven repo #
 ######################################################
-# Try artifactory
-set +e
-if [ -z $RETRY ]; then
-    get_full_scala
-    getRetCode=$?
-else
-    with_backoff get_full_scala
-    getRetCode=$?
-fi
-set -e
-if [ $getRetCode -ne 0 ]; then
-    say "### Fetching Scala $SCALAVERSION-$SCALAHASH-SNAPSHOT from artifactory failed ! (code $getRetCode)"
+# First, look at $SCALADIR to see if it contains to-be-deployed
+# artifacts
+if [ -d $SCALADIR/dists/maven/latest ]; then
+    say "### found a $SCALADIR/dists/maven/latest, deploying it"
+    # Let's deploy the found compiler
+    cd $SCALADIR/dists/maven/latest
+    # <--- this is super sensitive stuff ---->
+    (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+    # <--- this is super sensitive stuff ---->
+    cd -
 fi
 
 # Check if the compiler isnt' already in the local maven
