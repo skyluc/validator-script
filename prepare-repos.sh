@@ -63,12 +63,11 @@ do
     shift
 done
 
+ORIGPWD=`pwd`
 if [ -z $BASEDIR ]; then
-    BASEDIR=$(mktemp -dt scala-ide-validationXXX)
+    BASEDIR=$ORIGPWD
 fi
 echo "Will use $BASEDIR"
-
-ORIGPWD=`pwd`
 SCALADIR="$BASEDIR/scala/"
 SBTDIR="$BASEDIR/sbt/"
 SBINARYDIR="$BASEDIR/sbinary/"
