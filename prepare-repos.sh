@@ -49,11 +49,11 @@ function getOrUpdate(){
     popd
 }
 
-set -- $(getopt s:b: $*)
+set -- $(getopt h:b: $*)
 while [ $# -gt 0 ]
 do
     case "$1" in
-    (-s)    SCALACOMMIT=$2;
+    (-h)    SCALACOMMIT=$2;
             echo "processing Scala with commit $SCALACOMMIT";
             shift;;
     (-b) BASEDIR=$2; shift;;
