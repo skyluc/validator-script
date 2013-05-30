@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 ####################################################################
 # Build the whole chain from Scala (presumably downloaded from     #
@@ -405,6 +405,7 @@ set -e
 if [ $sbt_extraed -eq 0 ]; then
     LIVE_SBT_VERSION=$(sbt --version 2>&1|head -n 1|sed -nr 's/Detected\ sbt\ version\ ([0-9]+\.[0-9]+\.[0-9]+.*)/\1/p')
     DEST_REPO_FILE=$SBT_HOME/$LIVE_SBT_VERSION/repositories
+    mkdir -p $SBT_HOME/$LIVE_SBT_VERSION
     say "### sbt-extras detected, will write resolvers to $DEST_REPO_FILE"
 else
     DEST_REPO_FILE=$SBT_HOME/repositories
