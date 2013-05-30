@@ -1,4 +1,4 @@
-#!/bin/bash -xe
+#!/bin/bash 
 
 ####################################################################
 # Build the whole chain from Scala (presumably downloaded from     #
@@ -22,6 +22,7 @@ BUILDIT=""
 ORIGPWD=`pwd`
 BASEDIR=$ORIGPWD
 
+# Make sure this is an absolute path with preceding '/'
 LOCAL_M2_REPO="$BASEDIR/m2repo"
 LOGGINGDIR="$HOME"
 
@@ -65,9 +66,9 @@ function set_versions(){
         SCALAPATCH="0"
         # <--- this is super sensitive stuff ---->
     else
-        SCALAMAJOR=$(sed -n 's/version.major=\([0-9]\)/\1/p' $SCALADIR/build.number)
-        SCALAMINOR=$(sed -n 's/version.minor=\([0-9]\)/\1/p' $SCALADIR/build.number)
-        SCALAPATCH=$(sed -n 's/version.patch=\([0-9]\)/\1/p' $SCALADIR/build.number)
+        SCALAMAJOR=$(sed -rn 's/version.major=([0-9])/\1/p' $SCALADIR/build.number)
+        SCALAMINOR=$(sed -rn 's/version.minor=([0-9])/\1/p' $SCALADIR/build.number)
+        SCALAPATCH=$(sed -rn 's/version.patch=([0-9])/\1/p' $SCALADIR/build.number)
     fi
 
     SCALAVERSION="$SCALAMAJOR.$SCALAMINOR.$SCALAPATCH"
@@ -199,16 +200,16 @@ function say(){
 # :end docstring:
 
 function preparesbt(){
-    if [ -f $SBT_HOME/repositories ]; then
+    if [ -f $DEST_REPO_FILE ]; then
         OLD_SBT_REPO_FILE=$(mktemp -t sbtreposXXX)
-        cat $SBT_HOME/repositories > $OLD_SBT_REPO_FILE
+        cat $ > $OLD_SBT_REPO_FILE
     fi
-    cat > $SBT_HOME/repositories <<EOF
+    cat > $DEST_REPO_FILE <<EOF
 [repositories]
   local
   maven-central
   typesafe-ivy-releases: http://repo.typesafe.com/typesafe/ivy-releases/, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]
-  mavenLocal: file:///$LOCAL_M2_REPO
+  mavenLocal: file://$LOCAL_M2_REPO
 EOF
 }
 
@@ -218,10 +219,11 @@ EOF
 # :end docstring:
 
 function cleanupsbt(){
+    say "### cleaning up $DEST_REPO_FILE"
     if [[ ! -z $OLD_SBT_REPO_FILE ]]; then
-        mv $OLD_SBT_REPO_FILE $SBT_HOME/repositories
+        mv $OLD_SBT_REPO_FILE $DEST_REPO_FILE
     else
-        rm $SBT_HOME/repositories
+        rm $DEST_REPO_FILE
     fi
 }
 
@@ -237,20 +239,23 @@ function cleanupsbt(){
 # :end docstring:
 
 function sbtbuild(){
-sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
+    if [ ! -f build.properties ]; then
+        echo "sbt.version=0.12.3" > build.properties
+    fi
+    sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
      "set every version := \"$SBTVERSION\""\
      "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
      'set every Util.includeTestDependencies := false' \
-     'set every scalaBinaryVersion <<= scalaVersion.identity' \
-     'set (libraryDependencies in compilePersistSub) ~= { ld => ld map { case dep if (dep.organization == "org.scala-tools.sbinary") && (dep.name == "sbinary") => dep.copy(revision = (dep.revision + "-pretending-SNAPSHOT")) ; case dep => dep } }' \
-     'set every publishMavenStyle := true' \
-      "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
-     'set artifact in (compileInterfaceSub, packageBin) := Artifact("compiler-interface")' \
-     'set publishArtifact in (compileInterfaceSub, packageSrc) := false' \
-     'set every credentials := Seq(Credentials(Path.userHome / ".credentials"))' \
-     "set every publishTo := Some(Resolver.file(\"file\",  new File(\"$LOCAL_M2_REPO\")))" \
-     'set every crossPaths := true' \
-   +classpath/publish +logging/publish +io/publish +control/publish +classfile/publish +process/publish +relation/publish +interface/publish +persist/publish +api/publish +compiler-integration/publish +incremental-compiler/publish +compile/publish +compiler-interface/publish
+        'set every scalaBinaryVersion <<= scalaVersion.identity' \
+        'set (libraryDependencies in compilePersistSub) ~= { ld => ld map { case dep if (dep.organization == "org.scala-tools.sbinary") && (dep.name == "sbinary") => dep.copy(revision = (dep.revision + "-pretending-SNAPSHOT")) ; case dep => dep } }' \
+        'set every publishMavenStyle := true' \
+        "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
+        'set artifact in (compileInterfaceSub, packageBin) := Artifact("compiler-interface")' \
+        'set publishArtifact in (compileInterfaceSub, packageSrc) := false' \
+        'set every credentials := Seq(Credentials(Path.userHome / ".credentials"))' \
+        "set every publishTo := Some(Resolver.file(\"file\",  new File(\"$LOCAL_M2_REPO\")))" \
+        'set every crossPaths := true' \
+        +classpath/publish +logging/publish +io/publish +control/publish +classfile/publish +process/publish +relation/publish +interface/publish +persist/publish +api/publish +compiler-integration/publish +incremental-compiler/publish +compile/publish +compiler-interface/publish
 }
 
 # :docstring sbinarybuild:
@@ -265,6 +270,9 @@ sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVers
 # :end docstring:
 
 function sbinarybuild(){
+  if [ ! -f build.properties ]; then
+      echo "sbt.version=0.12.3" > build.properties
+  fi
   sbt "reboot full" clean "show scala-instance" \
   "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
   'set (version in core) ~= { v => v + "-pretending-SNAPSHOT" }' \
@@ -339,7 +347,7 @@ SBINARYDIR="$BASEDIR/sbinary/"
 REFACDIR="$BASEDIR/scala-refactoring/"
 IDEDIR="$BASEDIR/scala-ide/"
 if [ -z $SBT_HOME ]; then
-    SBT_HOME=$HOME/.sbt/
+    SBT_HOME=$HOME/.sbt
 fi
 
 set_versions
@@ -374,21 +382,34 @@ already_built=$?
 set -e
 if [ $already_built -ne 0 ]; then
     if [ -z $BUILDIT ]; then
-        say "### the Scala compiler was not found in local maven,"
+        say "### the Scala compiler was not found in local maven $LOCAL_M2_REPO,"
         say "### and this script is not allowed to build it, exiting"
         exit 1
     else
-        say "### the Scala compiler was not in local maven, building"
+        say "### the Scala compiler was not in local maven $LOCAL_M2_REPO, building"
         cd $SCALADIR
         (test ant-clean) || exit 125
         (test git clean -fxd) || exit 125
         (test ant-full-scala) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
     fi
 else
-    say "### the Scala compiler was found in local maven for $SCALAHASH"
+    say "### the Scala compiler was found in local maven $LOCAL_M2_REPO for $SCALAHASH"
 fi
 
 # Prepare .sbt/repositories resolution
+# Am I using sbt-extras ?
+set +e
+sbt --version 2>&1|head -n 1|grep -qe "Detected"
+sbt_extraed=$?
+set -e
+if [ $sbt_extraed -eq 0 ]; then
+    LIVE_SBT_VERSION=$(sbt --version 2>&1|head -n 1|sed -nr 's/Detected\ sbt\ version\ ([0-9]+\.[0-9]+\.[0-9]+.*)/\1/p')
+    DEST_REPO_FILE=$SBT_HOME/$LIVE_SBT_VERSION/repositories
+    say "### sbt-extras detected, will write resolvers to $DEST_REPO_FILE"
+else
+    DEST_REPO_FILE=$SBT_HOME/repositories
+    say "### vanilla sbt detected, will write resolvers to $DEST_REPO_FILE"
+fi
 # To do the minimal amount of change, this should properly be
 # executed if (! do_i_have [sbinary_args] || ! do_i_have
 # [sbt_args]) but it's too little gain to test for
