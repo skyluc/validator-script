@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -ex
 
 ####################################################################
 # Build the whole chain from Scala (presumably downloaded from     #
@@ -242,7 +242,8 @@ function cleanupsbt(){
 
 function sbtbuild(){
     if [ ! -f build.properties ]; then
-        echo "sbt.version=0.12.3" > build.properties
+        echo "sbt.version=$SBTVERSION" > build.properties
+        echo "sbt.repository.config=$DEST_REPO_FILE" >> build.properties
     fi
     sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
      "set every version := \"$SBTVERSION\""\
@@ -273,9 +274,10 @@ function sbtbuild(){
 
 function sbinarybuild(){
   if [ ! -f build.properties ]; then
-      echo "sbt.version=0.12.3" > build.properties
+      echo "sbt.version=$SBTVERSION" > build.properties
+      echo "sbt.repository.config=$DEST_REPO_FILE" >> build.properties
   fi
-  sbt "reboot full" clean "show scala-instance" \
+  sbt -verbose "reboot full" clean "show scala-instance" \
   "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
   'set (version in core) ~= { v => v + "-pretending-SNAPSHOT" }' \
   "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
