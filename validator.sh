@@ -202,7 +202,7 @@ function say(){
 function preparesbt(){
     if [ -f $DEST_REPO_FILE ]; then
         OLD_SBT_REPO_FILE=$(mktemp -t sbtreposXXX)
-        cat $ > $OLD_SBT_REPO_FILE
+        cat $DEST_REPO_FILE > $OLD_SBT_REPO_FILE
     fi
     cat > $DEST_REPO_FILE <<EOF
 [repositories]
@@ -241,11 +241,18 @@ function cleanupsbt(){
 # :end docstring:
 
 function sbtbuild(){
-    if [ ! -f build.properties ]; then
-        echo "sbt.version=$SBTVERSION" > build.properties
-        echo "sbt.repository.config=$DEST_REPO_FILE" >> build.properties
+    if [ -f project/build.properties ]; then
+        OLD_BUILDPROPERTIES_FILE=$(mktemp -t buildpropsXXX)
+        cat project/build.properties > $OLD_BUILDPROPERTIES_FILE
+        sed -ir "s/sbt\.version=.*/sbt.version=$SBTVERSION/" project/build.properties
+    else
+        echo "sbt.version=$SBTVERSION" > project/build.properties
     fi
-    sbt -verbose "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
+    echo "sbt.repository.config=$DEST_REPO_FILE" >> build.properties
+    echo "sbt.override.build.repos=true" >> build.properties
+
+    set +e
+    sbt -verbose -debug "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
      "set every version := \"$SBTVERSION\""\
      "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
      'set every Util.includeTestDependencies := false' \
@@ -259,6 +266,15 @@ function sbtbuild(){
         "set every publishTo := Some(Resolver.file(\"file\",  new File(\"$LOCAL_M2_REPO\")))" \
         'set every crossPaths := true' \
         +classpath/publish +logging/publish +io/publish +control/publish +classfile/publish +process/publish +relation/publish +interface/publish +persist/publish +api/publish +compiler-integration/publish +incremental-compiler/publish +compile/publish +compiler-interface/publish
+    sbt_return=$?
+    set -e
+
+    if [[ ! -z $OLD_BUILDPROPERTIES_FILE ]]; then
+        mv $OLD_BUILDPROPERTIES_FILE project/build.properties
+    else
+        rm project/build.properties
+    fi
+    return $sbt_return
 }
 
 # :docstring sbinarybuild:
@@ -273,11 +289,18 @@ function sbtbuild(){
 # :end docstring:
 
 function sbinarybuild(){
-  if [ ! -f build.properties ]; then
-      echo "sbt.version=$SBTVERSION" > build.properties
-      echo "sbt.repository.config=$DEST_REPO_FILE" >> build.properties
-  fi
-  sbt -verbose "reboot full" clean "show scala-instance" \
+    if [ -f project/build.properties ]; then
+        OLD_BUILDPROPERTIES_FILE=$(mktemp -t buildpropsXXX)
+        cat project/build.properties > $OLD_BUILDPROPERTIES_FILE
+        sed -ir "s/sbt\.version=.*/sbt.version=$SBTVERSION/" project/build.properties
+    else
+        echo "sbt.version=$SBTVERSION" > project/build.properties
+    fi
+    echo "sbt.repository.config=$DEST_REPO_FILE" >> build.properties
+    echo "sbt.override.build.repos=true" >> build.properties
+
+    set +e
+    sbt -verbose -debug "reboot full" clean "show scala-instance" \
   "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
   'set (version in core) ~= { v => v + "-pretending-SNAPSHOT" }' \
   "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
@@ -289,6 +312,15 @@ function sbinarybuild(){
   "set every publishTo := Some(Resolver.file(\"file\",  new File(\"$LOCAL_M2_REPO\")))" \
   'set every crossPaths := true' \
   +core/publish +core/publish-local
+    sbinary_return=$?
+    set -e
+
+    if [[ ! -z $OLD_BUILDPROPERTIES_FILE ]]; then
+        mv $OLD_BUILDPROPERTIES_FILE project/build.properties
+    else
+        rm project/build.properties
+    fi
+    return $sbinary_return
 }
 
 # :docstring maven_fail_detect:
