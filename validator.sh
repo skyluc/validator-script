@@ -206,12 +206,12 @@ function preparesbt(){
     fi
     cat > $DEST_REPO_FILE <<EOF
 [repositories]
-  local
   maven-central
+  local
   typesafe-ivy-releases: http://repo.typesafe.com/typesafe/ivy-releases/, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]
-  mavenLocal: file://$LOCAL_M2_REPO
   sonatype-snapshots: https://oss.sonatype.org/content/repositories/snapshots
   sonatype-releases: https://oss.sonatype.org/content/repositories/releases
+  mavenLocal: file://$LOCAL_M2_REPO
 EOF
 }
 
