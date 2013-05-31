@@ -210,6 +210,8 @@ function preparesbt(){
   maven-central
   typesafe-ivy-releases: http://repo.typesafe.com/typesafe/ivy-releases/, [organization]/[module]/[revision]/[type]s/[artifact](-[classifier]).[ext]
   mavenLocal: file://$LOCAL_M2_REPO
+  sonatype-snapshots: https://oss.sonatype.org/content/repositories/snapshots
+  sonatype-releases: https://oss.sonatype.org/content/repositories/releases
 EOF
 }
 
