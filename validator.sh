@@ -95,6 +95,9 @@ function set_versions(){
     # <--- this is super sensitive stuff ---->
     if [ -z $SBTVERSION ]; then exit 125; fi
     echo "### SBT version detected: \"$SBTVERSION\""| tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+
+    SBT_BOOTSTRAP_VERSION=$(sed -rn 's/sbt.version=([0-9]+\.[0-9]+\.[0-9]+)/\1/p' $SBTDIR/project/build.properties)
+    echo "### SBT bootstraping version detected: \"$SBT_BOOTSTRAP_VERSION\""| tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 }
 
 # :docstring ant-full-scala:
@@ -244,12 +247,12 @@ function sbtbuild(){
     if [ -f project/build.properties ]; then
         OLD_BUILDPROPERTIES_FILE=$(mktemp -t buildpropsXXX)
         cat project/build.properties > $OLD_BUILDPROPERTIES_FILE
-        sed -ir "s/sbt\.version=.*/sbt.version=$SBTVERSION/" project/build.properties
+        sed -ir "s/sbt\.version=.*/sbt.version=$SBT_BOOTSTRAP_VERSION/" project/build.properties
     else
-        echo "sbt.version=$SBTVERSION" > project/build.properties
+        echo "sbt.version=$SBT_BOOTSTRAP_VERSION" > project/build.properties
     fi
-    echo "sbt.repository.config=$DEST_REPO_FILE" >> build.properties
-    echo "sbt.override.build.repos=true" >> build.properties
+    echo "sbt.repository.config=$DEST_REPO_FILE" >> project/build.properties
+    echo "sbt.override.build.repos=true" >> project/build.properties
 
     set +e
     sbt -verbose -debug "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
@@ -292,12 +295,12 @@ function sbinarybuild(){
     if [ -f project/build.properties ]; then
         OLD_BUILDPROPERTIES_FILE=$(mktemp -t buildpropsXXX)
         cat project/build.properties > $OLD_BUILDPROPERTIES_FILE
-        sed -ir "s/sbt\.version=.*/sbt.version=$SBTVERSION/" project/build.properties
+        sed -ir "s/sbt\.version=.*/sbt.version=$SBT_BOOTSTRAP_VERSION/" project/build.properties
     else
-        echo "sbt.version=$SBTVERSION" > project/build.properties
+        echo "sbt.version=$SBT_BOOTSTRAP_VERSION" > project/build.properties
     fi
-    echo "sbt.repository.config=$DEST_REPO_FILE" >> build.properties
-    echo "sbt.override.build.repos=true" >> build.properties
+    echo "sbt.repository.config=$DEST_REPO_FILE" >> project/build.properties
+    echo "sbt.override.build.repos=true" >> project/build.properties
 
     set +e
     sbt -verbose -debug "reboot full" clean "show scala-instance" \
