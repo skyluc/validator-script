@@ -401,7 +401,7 @@ GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_M2_REPO}"
 # IDEOPTS="-Drepo.typesafe=http://repo.typesafe.com/typesafe/ide-$SCALASHORT"
 IDEOPTS=""
 # version logging
-(test mvn -version) | tee $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
+(test mvn -version) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
 
 ######################################################
 # Building Scala, and publishing to local maven repo #
