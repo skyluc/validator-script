@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/usr/bin/bash -ex
 
 ####################################################################
 # Build the whole chain from Scala (presumably downloaded from     #
@@ -498,9 +498,11 @@ if [ $sbtres -ne 0 ]; then
     (test git clean -fxd) || exit 125
     # TODO : make this much less brittle (see version detection above)
     # <--- this is super sensitive stuff ---->
-    set +e
-    git checkout "v${SBTVERSION%-SNAPSHOT}"
-    set -e
+    if $(git show-ref --tags|grep -qe "v${SBTVERSION%-SNAPSHOT}"); then
+        set +e
+        git checkout "v${SBTVERSION%-SNAPSHOT}"
+        set -e
+    fi
     # <--- this is super sensitive stuff ---->
     (test sbtbuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
     sbt_return=${PIPESTATUS[0]}
