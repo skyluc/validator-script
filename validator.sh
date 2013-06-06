@@ -93,7 +93,7 @@ function set_versions(){
     if [[ $SCALAMINOR -gt 10 ]]; then
         SBTVERSION=$(sed -rn 's/[^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z]+[0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|tail -n 1)
     else
-        SBTVERSION=$(sed -rn 's/[^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z]+[0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|head -n 1)
+        SBTVERSION=$(sed -rn 's/[^t]*<sbt\.version>([0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z]+[0-9]+)?(-SNAPSHOT)?)<\/sbt\.version>.*/\1/p' $IDEDIR/pom.xml|tail -n 2|head -n 1)
     fi
     # <--- this is super sensitive stuff ---->
     if [ -z $SBTVERSION ]; then exit 125; fi
@@ -110,7 +110,7 @@ function set_versions(){
 # :end docstring:
 
 function ant-full-scala(){
-    ant distpack -Dmaven.version.suffix="-`git rev-parse HEAD|cut -c 1-7`-SNAPSHOT" -Dlocal.snapshot.repository="$LOCAL_M2_REPO"
+    ant distpack -Darchives.skipxz -Dmaven.version.suffix="-`git rev-parse HEAD|cut -c 1-7`-SNAPSHOT" -Dlocal.snapshot.repository="$LOCAL_M2_REPO"
     if [ $? -ne 0 ]; then
         echo "### SCALA FAILED"
         kill -s TERM $TOP_PID
@@ -412,8 +412,16 @@ if [ -d $SCALADIR/dists/maven/latest ]; then
     say "### found a $SCALADIR/dists/maven/latest, deploying it"
     # Let's deploy the found compiler
     cd $SCALADIR/dists/maven/latest
-    (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-    cd -
+    # check hash corresponds to either the $SCALAHASH
+    # from command line or the hash determined from source repo
+    git_deployee=$(sed -rn 's/env.GIT_COMMIT=([0-9a-e]+)/\1/p' build.properties |cut -c 1-7)
+    if [ $git_deployee = $SCALAHASH ]; then
+        (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+        cd -
+    else
+        say "### the $SCALADIR/dists/maven/latest distrib does not match the hash of $SCALAHASH I am supposed to build, aborting"
+        exit 1
+    fi
 fi
 
 # Check if the compiler isnt' already in the local maven
@@ -430,9 +438,25 @@ if [ $already_built -ne 0 ]; then
     else
         say "### the Scala compiler was not in local maven $LOCAL_M2_REPO, building"
         cd $SCALADIR
-        (test ant-clean) || exit 125
-        (test git clean -fxd) || exit 125
-        (test ant-full-scala) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+        full_hash=$(git rev-parse $SCALAHASH)
+        response=$(curl --write-out %{http_code} --silent --output /dev/null "http://scala-webapps.epfl.ch/artifacts/$full_hash")
+        if [ $response -ne 404 ]; then
+            say "### the Scala compiler was found in scala-webapps! deploying this version"
+            rm -f maven.tgz
+            wget "http://scala-webapps.epfl.ch/artifacts/$full_hash/maven.tgz"
+            mkdir -p dists/maven/
+            pushd dists/maven/
+            tar xzvf ../../maven.tgz
+            cd latest
+            (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+            cd -
+            popd
+            rm maven.tgz
+        else
+            (test ant-clean) || exit 125
+            (test git clean -fxd) || exit 125
+            (test ant-full-scala) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+        fi
     fi
 else
     say "### the Scala compiler was found in local maven $LOCAL_M2_REPO for $SCALAHASH"
@@ -517,7 +541,7 @@ fi
 
 # Remove .sbt/repositories scaffolding
 (test cleanupsbt) || exit 125
-(git checkout origin/HEAD) || exit 125
+(pushd $SBTDIR && git checkout origin/HEAD && popd) || exit 125
 
 ################################
 # Building scala-refactoring #
