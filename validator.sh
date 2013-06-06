@@ -24,6 +24,7 @@ BASEDIR=$ORIGPWD
 
 # Make sure this is an absolute path with preceding '/'
 LOCAL_M2_REPO="$BASEDIR/m2repo"
+SOURCE="$BASEDIR/p2repo"
 LOGGINGDIR="$HOME"
 
 # :docstring usage:
@@ -102,6 +103,54 @@ function set_versions(){
     SBT_BOOTSTRAP_VERSION=$(sed -rn 's/sbt.version=([0-9]+\.[0-9]+\.[0-9]+)/\1/p' $SBTDIR/project/build.properties)
     echo "### SBT bootstraping version detected: \"$SBT_BOOTSTRAP_VERSION\""| tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 }
+
+
+function build_toolchain()
+{
+    # build toolchain
+    say "### Building toolchain"
+
+    rm -rf ${SOURCE}/*
+
+    cd $IDEDIR
+    mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -P $scala-$SCALASHORT.x -Drepo.typesafe=file://$LOCAL_M2_REPO -Dsbt.version=$SBTVERSION clean install
+
+    cd org.scala-ide.build-toolchain
+    mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -P $scala-$SCALASHORT.x -Drepo.typesafe=file://$LOCAL_M2_REPO -Dsbt.version=$SBTVERSION clean install
+
+    # make toolchain repo
+
+    say "### p2 toolchain repo"
+
+    cd ../org.scala-ide.toolchain.update-site
+    mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -P $scala-$SCALASHORT.x -Drepo.typesafe=file://$LOCAL_M2_REPO -Dsbt.version=$SBTVERSION clean install
+
+    REPO_SUFFIX=$(echo $SCALASHORT|tr -d '.')x
+
+    REPO_NAME=scala-eclipse-toolchain-osgi-${REPO_SUFFIX}
+    REPO=file://${SOURCE}/${REPO_NAME}
+    rm -Rf ${SOURCE}/${REPO_NAME}
+    mkdir -p ${SOURCE}/${REPO_NAME}
+
+    cp -r org.scala-ide.scala.update-site/target/site/* ${SOURCE}/${REPO_NAME}
+}
+
+function scalariformbuild()
+{
+    GIT_HASH=$(git rev-parse HEAD)
+
+    # build scalariform
+    say "### Building Scalariform"
+    cd ${SCALARIFORMDIR}
+
+    GIT_HASH=$(git rev-parse HEAD)
+
+    mvn $GENMVNOPTS -Pscala-$SCALASHORT.x -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Drepo.scala-ide=file://${SOURCE} -Dmaven.repo.local=$LOCAL_M2_REPO clean install
+    rm -rf ${SOURCE}/scalariform-${REPO_SUFFIX}
+    mkdir ${SOURCE}/scalariform-${REPO_SUFFIX}
+    cp -r scalariform.update/target/site/* ${SOURCE}/scalariform-${REPO_SUFFIX}/
+}
+
 
 # :docstring ant-full-scala:
 # Usage: ant-full-scala
@@ -387,6 +436,7 @@ fi
 SBTDIR="$BASEDIR/sbt/"
 SBINARYDIR="$BASEDIR/sbinary/"
 REFACDIR="$BASEDIR/scala-refactoring/"
+SCALARIFORMDIR="$BASEDIR/scalariform"
 IDEDIR="$BASEDIR/scala-ide/"
 if [ -z $SBT_HOME ]; then
     SBT_HOME=$HOME/.sbt
@@ -543,8 +593,26 @@ fi
 (test cleanupsbt) || exit 125
 (pushd $SBTDIR && git checkout origin/HEAD && popd) || exit 125
 
+
+########################
+# Building scalarifom  #
+########################
+cd $SCALARIFORMDIR
+
+(test build_toolchain) || exit 125
+(test scalariformbuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+scalariform_return=${PIPESTATUS[0]}
+if [ $scalariform_return -ne 0 ]; then
+    cd $ORIGPWD
+    say "### SCALARIFORM FAILED !"
+    exit 1
+else
+    say "### SCALARIFORM SUCCESS !"
+fi
+
+
 ################################
-# Building scala-refactoring #
+# Building scala-refactoring   #
 ################################
 # Note : because scala-refactoring is a dependency that is linked
 # to (from IDE) completely dynamically (read : w/o version requirements)
@@ -553,13 +621,21 @@ fi
 # have to rebuild it every time.
 cd $REFACDIR
 (test git clean -fxd) || exit 125
-(test mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+(test mvn $GENMVNOPTS -Drepo.scala-ide=file://${SOURCE} -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 refac_return=${PIPESTATUS[0]}
 if [ $refac_return -ne 0 ]; then
     cd $ORIGPWD
     say "### SCALA-REFACTORING FAILED !"
     exit 1
 else
+    # make scala-refactoring repo
+
+    REPO_NAME=scala-refactoring-${REPO_SUFFIX}
+    REPO=file://${SOURCE}/${REPO_NAME}
+
+    rm -rf ${SOURCE}/${REPO_NAME}
+    mkdir -p ${SOURCE}/${REPO_NAME}
+    cp -r scala-refactoring/org.scala-refactoring.update-site/target/site/* ${SOURCE}/${REPO_NAME}
     say "### SCALA-REFACTORING SUCCESS !"
 fi
 
@@ -574,7 +650,7 @@ set -e
 ######################
 cd $IDEDIR
 (test git clean -fxd) || exit 125
-(test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+(test ./build-all.sh $GENMVNOPTS -Drepo.scala-ide.root=file://${SOURCE} -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 ide_return=${PIPESTATUS[0]}
 if [ $ide_return -ne 0 ]; then
     cd $ORIGPWD

@@ -6,6 +6,7 @@
 SCALAURL="git://github.com/scala/scala.git"
 SBINARYURL="git://github.com/scala-ide/sbinary.git"
 SBTURL="git://github.com/sbt/sbt.git"
+SCALARIFORMURL="git://github.com/mdr/scalariform.git"
 REFACURL="git://github.com/scala-ide/scala-refactoring.git"
 IDEURL="git://github.com/scala-ide/scala-ide.git"
 
@@ -71,6 +72,7 @@ echo "Will use $BASEDIR"
 SCALADIR="$BASEDIR/scala/"
 SBTDIR="$BASEDIR/sbt/"
 SBINARYDIR="$BASEDIR/sbinary/"
+SCALARIFORMDIR="$BASEDIR/scalariform"
 REFACDIR="$BASEDIR/scala-refactoring/"
 IDEDIR="$BASEDIR/scala-ide/"
 
@@ -80,6 +82,7 @@ cd $BASEDIR
 # on average, 1K commits betw 2 Scala milestones
 # on average, < 10 commits betw sbinary chosen versions
 # on average, 80 commits betw 2 sbt milestones
+# on average, < 10 commits betw scalariform chosen versions
 # on average, 50 commits betw 2 refactoring releases
 # on average, 350 commits betw 2 ide releases
 if [ -z $SCALACOMMIT ]; then
@@ -89,6 +92,7 @@ getOrUpdate $SBINARYDIR $SBINARYURL "origin/HEAD" 20
 # TODO : fix up some symbolic-ref detection for sbt, this is
 # gonna blow up in our face
 getOrUpdate $SBTDIR $SBTURL "origin/HEAD" 160
+getOrUpdate $SCALARIFORMDIR $SCALARIFORMURL "origin/HEAD" 20
 getOrUpdate $REFACDIR $REFACURL "origin/HEAD" 100
 getOrUpdate $IDEDIR $IDEURL "origin/HEAD" 700
 
