@@ -1,4 +1,4 @@
-#!/usr/bin/bash -ex
+#!/bin/bash -ex
 
 ####################################################################
 # Build the whole chain from Scala (presumably downloaded from     #
@@ -517,12 +517,13 @@ fi
 
 # Remove .sbt/repositories scaffolding
 (test cleanupsbt) || exit 125
+(git checkout origin/HEAD) || exit 125
 
 ################################
 # Building scala-refactoring #
 ################################
 # Note : because scala-refactoring is a dependency that is linked
-# to completely dynamically (read : without version requirements)
+# to (from IDE) completely dynamically (read : w/o version requirements)
 # from custom update sites, looking for a maven artifact in a
 # local package is fragile to the point of uselessness. Hence we
 # have to rebuild it every time.
@@ -550,7 +551,6 @@ set -e
 cd $IDEDIR
 (test git clean -fxd) || exit 125
 (test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
-# (test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dsbt.compiled.version=$SCALAVERSION-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 ide_return=${PIPESTATUS[0]}
 if [ $ide_return -ne 0 ]; then
     cd $ORIGPWD
