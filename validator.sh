@@ -477,7 +477,11 @@ if [ -d $SCALADIR/dists/maven/latest ]; then
     # check hash corresponds to either the $SCALAHASH
     # from command line or the hash determined from source repo
     git_deployee=$(sed -rn 's/env.GIT_COMMIT=([0-9a-e]+)/\1/p' build.properties |cut -c 1-7)
-    if [ $git_deployee = $SCALAHASH ]; then
+    # If there is no readme, it's an artifical repo running for
+    # validation, so the process of distributing whatever is in
+    # dists/maven under the command-line hash is OK. If there is
+    # one this is a scala checkout, and I need to be a bit more clever.
+    if [[ ! -f $SCALADIR/Readme.rst || $git_deployee = $SCALAHASH ]]; then
         (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
         cd -
     else
