@@ -74,6 +74,7 @@ function set_versions(){
 
     SCALAVERSION="$SCALAMAJOR.$SCALAMINOR.$SCALAPATCH"
     SCALASHORT="$SCALAMAJOR.$SCALAMINOR"
+    REPO_SUFFIX=$(echo $SCALASHORT|tr -d '.')x
 
     if [[ -z $SCALAHASH || -z $SCALADATE || -z $SCALAVERSION ]]; then
         exit 125
@@ -105,6 +106,13 @@ function set_versions(){
 }
 
 
+# :docstring build_toolchain:
+# Usage: build_toolchain
+# Builds the basic toolchain off of the $IDEDIR repo, and
+# initializes the P2 repository in p2repo.
+# :end docstring:
+
+
 function build_toolchain()
 {
     # build toolchain
@@ -125,8 +133,6 @@ function build_toolchain()
     cd ../org.scala-ide.toolchain.update-site
     mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -P $scala-$SCALASHORT.x -Drepo.typesafe=file://$LOCAL_M2_REPO -Dsbt.version=$SBTVERSION clean install
 
-    REPO_SUFFIX=$(echo $SCALASHORT|tr -d '.')x
-
     REPO_NAME=scala-eclipse-toolchain-osgi-${REPO_SUFFIX}
     REPO=file://${SOURCE}/${REPO_NAME}
     rm -Rf ${SOURCE}/${REPO_NAME}
@@ -134,6 +140,11 @@ function build_toolchain()
 
     cp -r org.scala-ide.scala.update-site/target/site/* ${SOURCE}/${REPO_NAME}
 }
+
+# :docstring scalariformbuild:
+# Usage: scalariformbuild
+# Builds scalariform and makes it available in both maven and p2repo.
+# :end docstring:
 
 function scalariformbuild()
 {
@@ -146,6 +157,7 @@ function scalariformbuild()
     GIT_HASH=$(git rev-parse HEAD)
 
     mvn $GENMVNOPTS -Pscala-$SCALASHORT.x -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Drepo.scala-ide=file://${SOURCE} -Dmaven.repo.local=$LOCAL_M2_REPO clean install
+
     rm -rf ${SOURCE}/scalariform-${REPO_SUFFIX}
     mkdir ${SOURCE}/scalariform-${REPO_SUFFIX}
     cp -r scalariform.update/target/site/* ${SOURCE}/scalariform-${REPO_SUFFIX}/
@@ -635,7 +647,7 @@ else
 
     rm -rf ${SOURCE}/${REPO_NAME}
     mkdir -p ${SOURCE}/${REPO_NAME}
-    cp -r scala-refactoring/org.scala-refactoring.update-site/target/site/* ${SOURCE}/${REPO_NAME}
+    cp -r $REFACDIR/org.scala-refactoring.update-site/target/site/* ${SOURCE}/${REPO_NAME}
     say "### SCALA-REFACTORING SUCCESS !"
 fi
 
