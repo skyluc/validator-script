@@ -24,7 +24,6 @@ BASEDIR=$ORIGPWD
 
 # Make sure this is an absolute path with preceding '/'
 LOCAL_M2_REPO="$BASEDIR/m2repo"
-SOURCE="$BASEDIR/p2repo"
 LOGGINGDIR="$HOME"
 
 # :docstring usage:
@@ -37,7 +36,7 @@ function usage() {
     echo "    -b : basedir where to find checkouts"
     echo "    -s : build Scala if it can't be downloaded"
     echo "    -h : the 7-letter abbrev of the hash to build/retrieve"
-    echo "    -l : the local maven repo to use (default ~/.m2/repository) "
+    echo "    -l : the local maven repo to use (default BASEDIR/m2repo) "
     echo "Note : either -s or -h <scalahash> must be used"
 }
 
@@ -105,45 +104,9 @@ function set_versions(){
     echo "### SBT bootstraping version detected: \"$SBT_BOOTSTRAP_VERSION\""| tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 }
 
-
-# :docstring build_toolchain:
-# Usage: build_toolchain
-# Builds the basic toolchain off of the $IDEDIR repo, and
-# initializes the P2 repository in p2repo.
-# :end docstring:
-
-
-function build_toolchain()
-{
-    # build toolchain
-    say "### Building toolchain"
-
-    rm -rf ${SOURCE}/*
-
-    cd $IDEDIR
-    mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -P $scala-$SCALASHORT.x -Drepo.typesafe=file://$LOCAL_M2_REPO -Dsbt.version=$SBTVERSION clean install
-
-    cd org.scala-ide.build-toolchain
-    mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -P $scala-$SCALASHORT.x -Drepo.typesafe=file://$LOCAL_M2_REPO -Dsbt.version=$SBTVERSION clean install
-
-    # make toolchain repo
-
-    say "### p2 toolchain repo"
-
-    cd ../org.scala-ide.toolchain.update-site
-    mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -P $scala-$SCALASHORT.x -Drepo.typesafe=file://$LOCAL_M2_REPO -Dsbt.version=$SBTVERSION clean install
-
-    REPO_NAME=scala-eclipse-toolchain-osgi-${REPO_SUFFIX}
-    REPO=file://${SOURCE}/${REPO_NAME}
-    rm -Rf ${SOURCE}/${REPO_NAME}
-    mkdir -p ${SOURCE}/${REPO_NAME}
-
-    cp -r org.scala-ide.scala.update-site/target/site/* ${SOURCE}/${REPO_NAME}
-}
-
 # :docstring scalariformbuild:
 # Usage: scalariformbuild
-# Builds scalariform and makes it available in both maven and p2repo.
+# Builds scalariform and makes it available in maven.
 # :end docstring:
 
 function scalariformbuild()
@@ -156,11 +119,8 @@ function scalariformbuild()
 
     GIT_HASH=$(git rev-parse HEAD)
 
-    mvn $GENMVNOPTS -Pscala-$SCALASHORT.x -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Drepo.scala-ide=file://${SOURCE} -Dmaven.repo.local=$LOCAL_M2_REPO clean install
+    mvn $GENMVNOPTS -Pscala-$SCALASHORT.x -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dmaven.repo.local=$LOCAL_M2_REPO clean install
 
-    rm -rf ${SOURCE}/scalariform-${REPO_SUFFIX}
-    mkdir ${SOURCE}/scalariform-${REPO_SUFFIX}
-    cp -r scalariform.update/target/site/* ${SOURCE}/scalariform-${REPO_SUFFIX}/
 }
 
 
@@ -615,7 +575,6 @@ fi
 ########################
 cd $SCALARIFORMDIR
 
-(test build_toolchain) || exit 125
 (test scalariformbuild) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 scalariform_return=${PIPESTATUS[0]}
 if [ $scalariform_return -ne 0 ]; then
@@ -637,21 +596,13 @@ fi
 # have to rebuild it every time.
 cd $REFACDIR
 (test git clean -fxd) || exit 125
-(test mvn $GENMVNOPTS -Drepo.scala-ide=file://${SOURCE} -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+(test mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 refac_return=${PIPESTATUS[0]}
 if [ $refac_return -ne 0 ]; then
     cd $ORIGPWD
     say "### SCALA-REFACTORING FAILED !"
     exit 1
 else
-    # make scala-refactoring repo
-
-    REPO_NAME=scala-refactoring-${REPO_SUFFIX}
-    REPO=file://${SOURCE}/${REPO_NAME}
-
-    rm -rf ${SOURCE}/${REPO_NAME}
-    mkdir -p ${SOURCE}/${REPO_NAME}
-    cp -r $REFACDIR/org.scala-refactoring.update-site/target/site/* ${SOURCE}/${REPO_NAME}
     say "### SCALA-REFACTORING SUCCESS !"
 fi
 
@@ -666,7 +617,7 @@ set -e
 ######################
 cd $IDEDIR
 (test git clean -fxd) || exit 125
-(test ./build-all.sh $GENMVNOPTS -Drepo.scala-ide.root=file://${SOURCE} -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+(test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 ide_return=${PIPESTATUS[0]}
 if [ $ide_return -ne 0 ]; then
     cd $ORIGPWD
