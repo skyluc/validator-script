@@ -137,7 +137,7 @@ function ant-full-scala(){
         kill -s TERM $TOP_PID
     else
         cd dists/maven/latest
-        ant deploy.snapshot.local
+        ant -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local
         cd -
         echo "### SCALA SUCCESS !"
     fi
@@ -182,7 +182,7 @@ function do_i_have(){
    </dependencies>
 </project>
 EOF
-    (mvn $GENMVNOPTS  test)
+    (mvn $GENMVNOPTS test)
     detmvn=${PIPESTATUS[0]}
     cd $CALLBACK
     rm -rf $MVN_TEST_DIR
