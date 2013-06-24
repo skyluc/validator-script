@@ -495,7 +495,7 @@ sbt --version 2>&1|head -n 1|grep -qe "Detected"
 sbt_extraed=$?
 set -e
 if [ $sbt_extraed -eq 0 ]; then
-    SBT_INSTALLED=$(sbt --version 2>&1 |head -n 1|sed -rn 's/.*?([0-9]+\.[0-9]+\.[0-9]+)/\1/p')
+    SBT_INSTALLED=$(sbt --version 2>&1 |head -n 1|sed -rn 's/.*?([0-9]+\.[0-9]+\.[0-9]+(-[A-Z 0-9]+)?)/\1/p')
     DEST_REPO_FILE=$SBT_HOME/$SBT_INSTALLED/repositories
     mkdir -p $SBT_HOME/$SBT_INSTALLED
     say "### sbt-extras detected, will write resolvers to $DEST_REPO_FILE"
