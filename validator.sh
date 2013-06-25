@@ -600,7 +600,7 @@ fi
 # have to rebuild it every time.
 cd $REFACDIR
 (test git clean -fxd) || exit 125
-(test mvn $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+(test mvn $GENMVNOPTS -DskipTests=false -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Pscala-$SCALASHORT.x $REFACTOPS -Dgpg.skip=true clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 refac_return=${PIPESTATUS[0]}
 if [ $refac_return -ne 0 ]; then
     cd $ORIGPWD
@@ -621,7 +621,7 @@ set -e
 ######################
 cd $IDEDIR
 (test git clean -fxd) || exit 125
-(test ./build-all.sh $GENMVNOPTS -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+(test ./build-all.sh $GENMVNOPTS -DskipTests=false -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 ide_return=${PIPESTATUS[0]}
 if [ $ide_return -ne 0 ]; then
     cd $ORIGPWD
