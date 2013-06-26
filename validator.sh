@@ -279,7 +279,7 @@ function sbtbuild(){
     echo "sbt.override.build.repos=true" >> project/build.properties
 
     set +e
-    sbt -verbose -debug "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
+    sbt -verbose -debug  -Dsbt.ivy.home=$IVY_CACHE/.cache/.ivy2/ "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
      "set every version := \"$SBTVERSION\""\
      "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
      'set every Util.includeTestDependencies := false' \
@@ -327,7 +327,7 @@ function sbinarybuild(){
     echo "sbt.override.build.repos=true" >> project/build.properties
 
     set +e
-    sbt -verbose -debug "reboot full" clean "show scala-instance" \
+    sbt -verbose -debug -Dsbt.ivy.home=$IVY_CACHE/.cache/.ivy2/ "reboot full" clean "show scala-instance" \
   "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
   'set (version in core) ~= { v => v + "-pretending-SNAPSHOT" }' \
   "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
@@ -509,6 +509,7 @@ fi
 # To do the minimal amount of change, this should properly be
 # executed if (! do_i_have [sbinary_args] || ! do_i_have
 # [sbt_args]) but it's too little gain to test for
+IVY_CACHE=$(mktemp -d -t ivycacheXXX)
 (test preparesbt) || exit 125
 
 #####################################################
