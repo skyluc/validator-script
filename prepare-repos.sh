@@ -47,6 +47,9 @@ function getOrUpdate(){
         echo "Deepening $1 by $4 commits"
         git fetch --depth $4
     fi
+
+    git show
+
     popd
 }
 
