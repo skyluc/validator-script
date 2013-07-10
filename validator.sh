@@ -131,13 +131,13 @@ function scalariformbuild()
 # :end docstring:
 
 function ant-full-scala(){
-    ant distpack -Darchives.skipxz=true -Dlocal.snapshot.repository="$LOCAL_M2_REPO" -Dversion.suffix="-$SCALAHASH-SNAPSHOT"
+    ant distpack -Darchives.skipxz=true -Dlocal.repository="$LOCAL_M2_REPO" -Dversion.suffix="-$SCALAHASH-SNAPSHOT"
     if [ $? -ne 0 ]; then
         echo "### SCALA FAILED"
         kill -s TERM $TOP_PID
     else
         cd dists/maven/latest
-        ant -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local
+        ant -Dlocal.repository="$LOCAL_M2_REPO" -Dmaven.version.suffix="-$SCALAHASH-SNAPSHOT" deploy.local
         cd -
         echo "### SCALA SUCCESS !"
     fi
@@ -442,7 +442,7 @@ if [ -d $SCALADIR/dists/maven/latest ]; then
     # dists/maven under the command-line hash is OK. If there is
     # one this is a scala checkout, and I need to be a bit more clever.
     if [[ ! -f $SCALADIR/Readme.rst || $git_deployee = $SCALAHASH ]]; then
-        (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+        (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.repository="$LOCAL_M2_REPO" -Dmaven.version.suffix="-$SCALAHASH-SNAPSHOT" deploy.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
         cd -
     else
         say "### the $SCALADIR/dists/maven/latest distrib does not match the hash of $SCALAHASH I am supposed to build, aborting"
@@ -474,7 +474,7 @@ if [ $already_built -ne 0 ]; then
             pushd dists/maven/
             tar xzvf ../../maven.tgz
             cd latest
-            (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.snapshot.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+            (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
             cd -
             popd
             rm maven.tgz
