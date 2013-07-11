@@ -277,9 +277,10 @@ function sbtbuild(){
     fi
     echo "sbt.repository.config=$DEST_REPO_FILE" >> project/build.properties
     echo "sbt.override.build.repos=true" >> project/build.properties
+    echo "### forcing sbt to look at sbt-dir $EXTRASBTDIR"
 
     set +e
-    sbt -verbose -debug  -Dsbt.ivy.home=$IVY_CACHE/.cache/.ivy2/ "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
+    sbt $EXTRASBTDIR -verbose -debug  -Dsbt.ivy.home=$IVY_CACHE/.cache/.ivy2/ "reboot full" clean "show scala-instance" "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
      "set every version := \"$SBTVERSION\""\
      "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
      'set every Util.includeTestDependencies := false' \
@@ -325,9 +326,10 @@ function sbinarybuild(){
     fi
     echo "sbt.repository.config=$DEST_REPO_FILE" >> project/build.properties
     echo "sbt.override.build.repos=true" >> project/build.properties
+    echo "### forcing sbt to look at sbt-dir $EXTRASBTDIR"
 
     set +e
-    sbt -verbose -debug -Dsbt.ivy.home=$IVY_CACHE/.cache/.ivy2/ "reboot full" clean "show scala-instance" \
+    sbt $EXTRASBTDIR -verbose -debug -Dsbt.ivy.home=$IVY_CACHE/.cache/.ivy2/ "reboot full" clean "show scala-instance" \
   "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
   "set (version in core) := \"$SBINARYVERSION\"" \
   "set every crossScalaVersions := Seq(\"$SCALAVERSION-$SCALAHASH-SNAPSHOT\")"\
@@ -474,7 +476,7 @@ if [ $already_built -ne 0 ]; then
             pushd dists/maven/
             tar xzvf ../../maven.tgz
             cd latest
-            (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.repository="$LOCAL_M2_REPO" deploy.snapshot.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+            (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.repository="$LOCAL_M2_REPO" -Dmaven.version.suffix="-$SCALAHASH-SNAPSHOT" deploy.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
             cd -
             popd
             rm maven.tgz
@@ -506,6 +508,7 @@ else
     DEST_REPO_FILE=$SBT_HOME/repositories
     say "### vanilla sbt detected, will write resolvers to $DEST_REPO_FILE"
 fi
+EXTRASBTDIR="-sbt-dir ${DEST_REPO_FILE%\/repositories}"
 # To do the minimal amount of change, this should properly be
 # executed if (! do_i_have [sbinary_args] || ! do_i_have
 # [sbt_args]) but it's too little gain to test for
