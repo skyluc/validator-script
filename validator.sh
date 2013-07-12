@@ -131,7 +131,7 @@ function scalariformbuild()
 # :end docstring:
 
 function ant-full-scala(){
-    ant distpack -Darchives.skipxz=true -Dlocal.snapshot.repository="$LOCAL_M2_REPO" -Dversion.suffix="-$SCALAHASH-SNAPSHOT"
+    ant distpack-maven-opt -Darchives.skipxz=true -Dlocal.snapshot.repository="$LOCAL_M2_REPO" -Dversion.suffix="-$SCALAHASH-SNAPSHOT"
     if [ $? -ne 0 ]; then
         echo "### SCALA FAILED"
         kill -s TERM $TOP_PID
