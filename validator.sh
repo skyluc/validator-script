@@ -46,7 +46,7 @@ function usage() {
 # :end docstring:
 
 function set_versions(){
-    if [[ -z $SCALAHASH || ! -z $BUILDIT ]]; then
+    if [[ -z $SCALAHASH ]] || [[ ! -z $BUILDIT ]]; then
         pushd $SCALADIR
         SCALAHASH=$(git rev-parse HEAD | cut -c 1-7)
         popd
@@ -75,7 +75,7 @@ function set_versions(){
     SCALASHORT="$SCALAMAJOR.$SCALAMINOR"
     REPO_SUFFIX=$(echo $SCALASHORT|tr -d '.')x
 
-    if [[ -z $SCALAHASH || -z $SCALADATE || -z $SCALAVERSION ]]; then
+    if [[ -z $SCALAHASH ]] || [[ -z $SCALADATE ]] || [[ -z $SCALAVERSION ]]; then
         exit 125
     fi
 
@@ -443,7 +443,7 @@ if [ -d $SCALADIR/dists/maven/latest ]; then
     # validation, so the process of distributing whatever is in
     # dists/maven under the command-line hash is OK. If there is
     # one this is a scala checkout, and I need to be a bit more clever.
-    if [[ ! -f $SCALADIR/Readme.rst || $git_deployee = $SCALAHASH ]]; then
+    if [[ ! -f $SCALADIR/Readme.rst ]] || [[ $git_deployee = $SCALAHASH ]]; then
         (test ant -Dmaven.version.number=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dlocal.snapshot.repository="$LOCAL_M2_REPO" -Dmaven.version.suffix="-$SCALAHASH-SNAPSHOT" deploy.local) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
         cd -
     else
@@ -481,7 +481,7 @@ if [ $already_built -ne 0 ]; then
             popd
             rm maven.tgz
             do_i_have "org.scala-lang" "scala-compiler" "$SCALAVERSION-$SCALAHASH-SNAPSHOT"
-            if [ ! $? -eq 0]; then
+            if [[ ! $? -eq 0 ]]; then
                 say "### deployment failed ! aborting"
                 echo  "### deployment failed ! aborting"
                 exit 125
