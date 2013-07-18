@@ -221,6 +221,43 @@ function say(){
     (echo "$@") | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 }
 
+function create_dummy_p2() {
+    P2_REPO=$(mktemp -d -t p2repo$1XXX)
+    cat >$P2_REPO/content.xml <<EOF
+<?xml version='1.0' encoding='UTF-8'?>
+<?metadataRepository version='1.1.0'?>
+<repository name="$1" type='org.eclipse.equinox.internal.p2.metadata.repository.LocalMetadataRepository' version='1'>
+ <properties size='2'>
+   <property name='p2.timestamp' value='1374160611079'/>
+   <property name='p2.compressed' value='true'/>
+ </properties>
+</repository>
+EOF
+    echo $P2_REPO
+}
+
+# :docstring prepareide:
+# Usage: prepareide
+# This prepares the master pom to accept fallback from p2 to
+# maven
+# Should be executed in $IDEDIR
+# :end docstring
+function prepareide() {
+    if [ -f $IDEDIR/pom.xml ]; then
+        IDE_POM_BACKUP=$(mktemp -t idepomXXX)
+        cat pom.xml > $IDE_POM_BACKUP
+    fi
+    # Ugly way of telling the build to fallback to maven
+    sed -i '/\s*<artifactId>target-platform-configuration<\/artifactId>/{ N; s/\(\s*<artifactId>target-platform-configuration<\/artifactId>\n\s*<version>\${tycho.plugin.version}<\/version>\)/\1<configuration><pomDependencies>consider<\/pomDependencies><\/configuration>/g }' pom.xml
+}
+
+function cleanupide() {
+    if [ -f $IDE_POM_BACKUP ]; then
+        mv $IDE_POM_BACKUP $IDEDIR/pom.xml
+    fi
+    rm $IDEDIR/pom_replacement $IDEDIR/pom_pattern
+}
+
 # :docstring preparesbt:
 # Usage: preparesbt
 # This lets sbt know to look for the local maven repository.
@@ -423,7 +460,9 @@ GENMVNOPTS="-e -X -Dmaven.repo.local=${LOCAL_M2_REPO}"
 #REFACTOPS="-Dmaven.test.skip=true"
  REFACOPTS=""
 # IDEOPTS="-Drepo.typesafe=http://repo.typesafe.com/typesafe/ide-$SCALASHORT"
-IDEOPTS=""
+P2_REPO_REFACTORING=$(create_dummy_p2 scala-refactoring)
+P2_REPO_SCALARIFORM=$(create_dummy_p2 scalariform)
+IDEOPTS="-Drepo.scala-refactoring=file://$P2_REPO_REFACTORING -Drepo.scalariform=file://$P2_REPO_SCALARIFORM"
 # version logging
 (test mvn -version) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log || exit 125
 
@@ -631,6 +670,7 @@ set -e
 ######################
 cd $IDEDIR
 (test git clean -fxd) || exit 125
+(test prepareide)|| exit 125
 # -Dtycho.disableP2Mirrors=true -- when mirrors are slow
 (test ./build-all.sh $GENMVNOPTS -DskipTests=false -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x -Peclipse-juno clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 ide_return=${PIPESTATUS[0]}
@@ -640,6 +680,7 @@ if [ $ide_return -ne 0 ]; then
 else
     say "### SCALA-IDE SUCCESS !"
 fi
+(test cleanupide) || exit 125
 set +e
 test maven_fail_detect
 set -e
