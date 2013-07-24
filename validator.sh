@@ -285,7 +285,7 @@ function sbtbuild(){
      "set every scalaVersion := \"$SCALAVERSION-$SCALAHASH-SNAPSHOT\""\
      'set every Util.includeTestDependencies := false' \
         'set every scalaBinaryVersion <<= scalaVersion.identity' \
-        'set (libraryDependencies in compilePersistSub) ~= { ld => ld map { case dep if (dep.organization == "org.scala-tools.sbinary") && (dep.name == "sbinary") => dep.copy(revision = (dep.revision + "-pretending-SNAPSHOT")) ; case dep => dep } }' \
+        'set (libraryDependencies in compilePersistSub) ~= { ld => ld map { case dep if (dep.organization == "org.scala-tools.sbinary") && (dep.name == "sbinary") => dep.copy(revision = (dep.revision + "-SNAPSHOT")) ; case dep => dep } }' \
         'set every publishMavenStyle := true' \
         "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
         'set artifact in (compileInterfaceSub, packageBin) := Artifact("compiler-interface")' \
