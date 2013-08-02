@@ -20,7 +20,7 @@ RETRY=""
 BUILDIT=""
 
 ORIGPWD=`pwd`
-BASEDIR=$ORIGPWD
+BASEDIR="$ORIGPWD"
 
 # Make sure this is an absolute path with preceding '/'
 LOCAL_M2_REPO="$BASEDIR/m2repo"
@@ -413,7 +413,7 @@ REFACDIR="$BASEDIR/scala-refactoring/"
 SCALARIFORMDIR="$BASEDIR/scalariform"
 IDEDIR="$BASEDIR/scala-ide/"
 if [ -z $SBT_HOME ]; then
-    SBT_HOME=$HOME/.sbt
+    SBT_HOME="$HOME/.sbt"
 fi
 
 set_versions
@@ -510,11 +510,11 @@ if [ $sbt_extraed -eq 0 ]; then
     DEST_REPO_FILE=$SBT_HOME/$SBT_BOOTSTRAP_VERSION/repositories
     mkdir -p $SBT_HOME/$SBT_BOOTSTRAP_VERSION
     say "### sbt-extras detected, will write resolvers to $DEST_REPO_FILE"
+    EXTRASBTDIR="-sbt-dir ${DEST_REPO_FILE%\/repositories}"
 else
     DEST_REPO_FILE=$SBT_HOME/repositories
     say "### vanilla sbt detected, will write resolvers to $DEST_REPO_FILE"
 fi
-EXTRASBTDIR="-sbt-dir ${DEST_REPO_FILE%\/repositories}"
 # To do the minimal amount of change, this should properly be
 # executed if (! do_i_have [sbinary_args] || ! do_i_have
 # [sbt_args]) but it's too little gain to test for
