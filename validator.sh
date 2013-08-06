@@ -467,8 +467,11 @@ if [ $already_built -ne 0 ]; then
         say "### the Scala compiler was not in local maven $LOCAL_M2_REPO, building"
         cd $SCALADIR
         full_hash=$(git rev-parse $SCALAHASH)
+        set +e
         response=$(curl --write-out %{http_code} --silent --output /dev/null "http://scala-webapps.epfl.ch/artifacts/$full_hash")
-        if [ $response -ne 404 ]; then
+        set -e
+        # you get 000 if you are offline
+        if [ $response -ne 404 ] && [ $response -ne 000 ]; then
             say "### the Scala compiler was found in scala-webapps! deploying this version"
             rm -f maven.tgz
             wget "http://scala-webapps.epfl.ch/artifacts/$full_hash/maven.tgz"
