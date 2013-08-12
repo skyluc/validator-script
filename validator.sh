@@ -635,7 +635,7 @@ set -e
 cd $IDEDIR
 (test git clean -fxd) || exit 125
 # -Dtycho.disableP2Mirrors=true -- when mirrors are slow
-(test ./build-all.sh $GENMVNOPTS -DskipTests=false -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT $IDEOPTS -Pscala-$SCALASHORT.x -Peclipse-juno clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
+(test ./build-all.sh $GENMVNOPTS -DskipTests=false -Dscala.version=$SCALAVERSION-$SCALAHASH-SNAPSHOT -Dsbt.version=$SBTVERSION -Sbst.ide.version=$SBTVERSION $IDEOPTS -Pscala-$SCALASHORT.x -Peclipse-juno -Psbt-legacy clean install) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
 ide_return=${PIPESTATUS[0]}
 if [ $ide_return -ne 0 ]; then
     cd $ORIGPWD
