@@ -287,7 +287,7 @@ function sbtbuild(){
         'set every scalaBinaryVersion <<= scalaVersion.identity' \
         'set (libraryDependencies in compilePersistSub) ~= { ld => ld map { case dep if (dep.organization == "org.scala-tools.sbinary") && (dep.name == "sbinary") => dep.copy(revision = (dep.revision + "-SNAPSHOT")) ; case dep => dep } }' \
         'set every publishMavenStyle := true' \
-        "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
+        "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://private-repo.typesafe.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
         'set artifact in (compileInterfaceSub, packageBin) := Artifact("compiler-interface")' \
         'set publishArtifact in (compileInterfaceSub, packageSrc) := false' \
         'set every credentials := Seq(Credentials(Path.userHome / ".credentials"))' \
@@ -336,7 +336,7 @@ function sbinarybuild(){
   'set every scalaBinaryVersion <<= scalaVersion.identity' \
   'set (libraryDependencies in core) ~= { _ filterNot (_.configurations.map(_ contains "test").getOrElse(false)) }' \
   'set every publishMavenStyle := true' \
-  "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://typesafe.artifactoryonline.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
+  "set every resolvers := Seq(\"Sonatype OSS Snapshots\" at \"https://oss.sonatype.org/content/repositories/snapshots\", \"Typesafe IDE\" at \"https://private-repo.typesafe.com/typesafe/ide-$SCALASHORT\", \"Local maven\" at \"file://$LOCAL_M2_REPO\")" \
   'set every credentials := Seq(Credentials(Path.userHome / ".credentials"))' \
   "set every publishTo := Some(Resolver.file(\"file\",  new File(\"$LOCAL_M2_REPO\")))" \
   'set every crossPaths := true' \
