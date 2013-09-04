@@ -490,6 +490,11 @@ if [ $already_built -ne 0 ]; then
                 exit 125
             fi
         else
+            present_hash=$(git rev-parse | cut -c 1-7)
+            if [ $present_hash != $SCALA_HASH ]; then
+                say "### You are requiring $SCALA_HASH, which is not in $SCALA_DIR (found $present_hash), aborting!"
+                exit 125
+            fi
             (test ant-clean) || exit 125
             (test git clean -fxd) || exit 125
             (test ant-full-scala) | tee -a $LOGGINGDIR/compilation-$SCALADATE-$SCALAHASH.log
