@@ -23,7 +23,6 @@ ORIGPWD=`pwd`
 BASEDIR="$ORIGPWD"
 
 # Make sure this is an absolute path with preceding '/'
-LOCAL_M2_REPO="$BASEDIR/m2repo"
 LOGGINGDIR="$HOME"
 
 # :docstring usage:
@@ -399,6 +398,10 @@ do
     esac
     shift
 done
+
+if [[ -n "$LOCAL_M2_REPO" ]]; then
+    LOCAL_M2_REPO="$BASEDIR/m2repo"
+fi
 
 SCALADIR="$BASEDIR/scala/"
 if [[ -z $BUILDIT && -z $SCALAHASH && ! -d $SCALADIR ]]; then
