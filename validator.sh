@@ -25,6 +25,16 @@ BASEDIR="$ORIGPWD"
 # Make sure this is an absolute path with preceding '/'
 LOGGINGDIR="$HOME"
 
+# prerequites
+
+# Java 1.6.x
+JAVA_VERSION=$(javaoo -version 2>&1 | grep 'java version' | awk -F '"' '{print $2;}')
+JAVA_SHORT_VERSION=${JAVA_VERSION:0:3}
+if [ "1.6" != "${SHORT_VERSION}" ]; then
+  echo "Please run the validator with Java 1.6."
+  exit 2
+fi
+
 # :docstring usage:
 # Usage: usage
 # Prints a succint option help message.
