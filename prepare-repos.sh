@@ -48,7 +48,7 @@ function getOrUpdate(){
         git fetch --depth $4
     fi
 
-    git show
+    git show | head -100
 
     popd
 }
