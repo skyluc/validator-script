@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 # Simple repo preparation script:
 # We clone with the specified commit of Scala, and the latest
 # versions of sbinary, sbt, scala-refactoring and scala-ide.
@@ -11,7 +11,7 @@ REFACURL="git://github.com/scala-ide/scala-refactoring.git"
 IDEURL="git://github.com/scala-ide/scala-ide.git"
 
 function usage() {
-    echo "Usage : $0 [-s <scala-commit>] [-b <basedir>]"
+    echo "Usage : $0 [-h <scala-commit>] [-b <basedir>]"
 }
 
 
