@@ -479,6 +479,7 @@ if [ $already_built -ne 0 ]; then
     else
         say "### the Scala compiler was not in local maven $LOCAL_M2_REPO, building"
         cd $SCALADIR
+        export ANT_OPTS="-Xms512M -Xmx2048M -Xss1M -XX:MaxPermSize=128M"
         full_hash=$(git rev-parse $SCALAHASH)
         set +e
         response=$(curl --write-out %{http_code} --silent --output /dev/null "http://scala-webapps.epfl.ch/artifacts/$full_hash")
