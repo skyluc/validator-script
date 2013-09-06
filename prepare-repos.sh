@@ -16,7 +16,7 @@ function usage() {
 
 
 # :docstring getOrUpdate:
-# Usage : getOrUpdate <directory> <url> <reference> <n>
+# Usage : getOrUpdate <directory> <url> <reference> <n> <prFetch>
 #
 # Updates or clones the checkout of <reference> taken from the
 # git repo at <url> into the local directory
@@ -31,6 +31,12 @@ function getOrUpdate(){
     if [ ! -d $1 ]; then
         git clone --depth 1 $2
         deepen='true'
+        pushd $1
+        if [ -n "$5" ]; then
+           git  config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/$5/*"
+           git fetch origin --depth 1
+        fi
+        popd
     else
         pushd $1
         originUrl=$(git config --get remote.origin.url)
@@ -88,9 +94,10 @@ cd $BASEDIR
 # on average, < 10 commits betw scalariform chosen versions
 # on average, 50 commits betw 2 refactoring releases
 # on average, 350 commits betw 2 ide releases
-if [ -z $SCALACOMMIT ]; then
-    getOrUpdate $SCALADIR $SCALAURL $SCALACOMMIT 2000
+if [ -z "$SCALACOMMIT" ]; then
+  SCALACOMMIT="origin/HEAD"
 fi
+getOrUpdate $SCALADIR $SCALAURL $SCALACOMMIT 2000 pr
 getOrUpdate $SBINARYDIR $SBINARYURL "origin/HEAD" 20
 # TODO : fix up some symbolic-ref detection for sbt, this is
 # gonna blow up in our face
